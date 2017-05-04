@@ -3,13 +3,14 @@ const request = require('request');
 const tm = require('./tm.js');
 
 class Account  {
-	constructor (api){
+	constructor (api,id){
+		this.id = id;
 		this.api = api;
 		this.setOnline = this.setOnline.bind(this);
 	}
 
 	setOnline() {
-		this.api.vk().request('account.setOnline', {}, function(body) {});
+		this.api.get(this.id).vk().request('account.setOnline', {}, function(body) {});
 	}
 }
 

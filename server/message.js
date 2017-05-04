@@ -6,7 +6,7 @@ const tm = require('./tm.js');
 
 
 class Message {
-	constructor (id,api){
+	constructor (api,id){
 		this.id = id;
 		this.api = api;
 		this.sendToTm = this.sendToTm.bind(this);
@@ -28,7 +28,7 @@ class Message {
 		let title = i[5];
 		let text = i[6];
         if(title === " ... " &&  api.get(id).lastMsg !== msg_id){
-        	Users.get(api,user_id).then(result => {
+        	Users.get(api,id,user_id).then(result => {
             	let user = {};
             	user.first_name = result[0].first_name;
             	user.last_name = result[0].last_name;
@@ -45,12 +45,12 @@ class Message {
 		let api = this.api;
 		let id = this.id;
 		return function(){
-			api.vk().request('messages.getById', {"message_ids" : message_ids}, function(body) {
+			api.get(id).vk().request('messages.getById', {"message_ids" : message_ids}, function(body) {
 
 				body.response.items.map(i => {  	                             
 	                if(i.title === " ... " && i.read_state === 0 && api.get(id).prevUser !== i.user_id){
 	                    api.setPrev(id,i.user_id); 
-	                    api.vk().request('messages.send', { "user_ids":i.user_id, "message" : "Ваше сообщение прочитано , Вам ответят позднее.С наилучшими пожеланиями, бот Иван."}, function(body) {});                 
+	                    api.get(id).vk().request('messages.send', { "user_ids":i.user_id, "message" : "Ваше сообщение прочитано , Вам ответят позднее.С наилучшими пожеланиями, бот Иван."}, function(body) {});                 
 	                }                               
 	            });	 
 			});
@@ -58,13 +58,14 @@ class Message {
 	}	
 
 	send(user_id,msg) {
-        this.api.vk().request('messages.send', { "user_ids":user_id , "message" : msg }, function(body) {});
+        this.api.get(this.id).vk().request('messages.send', { "user_ids":user_id , "message" : msg }, function(body) {});
 	}
 
 	getDialogs (){
 		let api = this.api;
+		let id = this.id;
 		return new Promise(function(resolve, reject){
-			api.vk().request('messages.getDialogs', {'count' : 5}, function(body) {
+			api.get(id).vk().request('messages.getDialogs', {'count' : 5}, function(body) {
 			    resolve(body.response.items);
 			});
 		});
@@ -72,8 +73,9 @@ class Message {
 
 	getHistory (peer_id){
 		let api = this.api;
+		let id = this.id;
 		return new Promise(function(resolve, reject){
-			api.vk().request('messages.getHistory', {'count' : 10 , "peer_id" : peer_id}, function(body) {
+			api.get(id).vk().request('messages.getHistory', {'count' : 10 , "peer_id" : peer_id}, function(body) {
 			    resolve(body.response.items);
 			});
 		});
@@ -81,7 +83,8 @@ class Message {
 
 	markAsRead(message_ids){
 		let api = this.api;
-		api.vk().request('messages.markAsRead', {'message_ids' : message_ids}, function(body) {
+		let id = this.id;
+		api.get(id).vk().request('messages.markAsRead', {'message_ids' : message_ids}, function(body) {
 		    
 		});
 	}
@@ -90,7 +93,7 @@ class Message {
 	getLongPollServer(){
 		let id = this.id;
 		let api = this.api;
-		api.vk().request('messages.getLongPollServer', { }, function(body) {
+		api.get(id).vk().request('messages.getLongPollServer', { }, function(body) {
 			let key = body.response.key; 
 	        let server = body.response.server;
 	        let ts = body.response.ts; 

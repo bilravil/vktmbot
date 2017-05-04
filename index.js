@@ -20,7 +20,7 @@ const vk = new VK({
    'language'  : 'ru'
 });
 vk.setSecureRequests(true);
-vk.setToken(config.vk.access_token);
+
 
 vk.on('http-error', function(_e) {
     console.log(_e);
@@ -32,16 +32,17 @@ vk.on('parse-error', function(_e) {
 var data = {} ;
 
 var api = {
-	init : function(id,chatId) { 
+	init : function(id,chatId,vk_id,token) { 
 		data[id] = { 
-			message : new Message(id,api), 
-			account : new Account(api),
-			friends : new Friends(api,26194851),
-			chatId : chatId
+			message : new Message(api,id), 
+			account : new Account(api,id),
+			friends : new Friends(api,id,vk_id),
+			chatId : chatId,
+			vk_id : vk_id,
+			vk : function() { vk.setToken(token); return vk ; }
 		} 
 		setInterval(data[id].account.setOnline,5000);
 	},
-	vk : function() { return vk ; },
 	users : function() { return Users ;},
 	setPrev : function(id,prevUser) { data[id].prevUser = prevUser },
 	setCur : function(id,curUser) { data[id].curUser = curUser },

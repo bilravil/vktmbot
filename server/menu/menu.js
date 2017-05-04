@@ -3,6 +3,14 @@ const emoji = require('node-emoji');
 
 const menu = {
 
+    start : {
+      reply_markup: {
+        resize_keyboard: true,
+        one_time_keyboard: false,
+        keyboard: [[`Старт! ${emoji.get('dizzy')}`]]
+      }
+    },
+
     message : {
       reply_markup: {
         resize_keyboard: true,
@@ -45,7 +53,11 @@ const menu = {
               ]
            ]
        })
-    }
+    },
+
+    start_message : `Привет! Я бот для VK . Для начала  тебе  необходимо пройти по этой ссылке - https://vk.cc/6BdSa4 и дать доступ приложению. 
+            Потом скопировать путь с адресной строки и отправить в этот  чат. 
+            Данная процедура необходима для переадресации  сообщений в telegram и не несет никакой опасности для твоего аккаунта.`
 }
 
 module.exports = menu;

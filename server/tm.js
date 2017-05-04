@@ -3,7 +3,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const emoji = require('node-emoji');
 const menu = require('./menu/menu.js');
-
+const request = require('request');
 var token ;
 var bot ;
 
@@ -27,49 +27,13 @@ exports.Run = function(config,api,callback){
     token = config.tm.token;
     bot = new TelegramBot(token, { polling: true });
 
-    bot.onText(/\/chatId/, (msg) => {
-      var chatId = msg.chat.id;
-      bot.sendMessage(chatId, chatId);
-    });
-
-    let dialogs = (chatId,fromId) =>{
-      api.get(fromId).message.getDialogs()
-        .then(result => {
-            let user_ids = ``;           
-            return new Promise(function(resolve, reject){ 
-                result.map((i ,index ) => { 
-                    user_ids += i.message.user_id + ',';  if(index == result.length-1) resolve(user_ids);
-                });
-            })
-        .then(users_list => {             
-            api.users().get(api,users_list).then(users => {   
-                  result.map((k,index) =>{  
-                    let i = k.message;
-                    let user = {};
-                    let list = ``;  
-                    user.first_name = users[index].first_name;
-                    user.last_name = users[index].last_name;
-                    let title = i.title === ' ... ' ? `${user.first_name} ${user.last_name}` : i.title;
-                    let chat = i.title === ' ... ' ? `chat${i.user_id} ${emoji.get('speech_balloon')}` : `chat0${i.chat_id} ${emoji.get('speech_balloon')}`;  
-                    list = `${title} /${chat} \n${user.first_name} ${user.last_name} : ${i.body}\n`;
-                    setTimeout(function(){bot.sendMessage(chatId, list)},index*200); 
-                });
-            })                    
-        })          
-      })
-    }
-
     bot.onText(/\/start/, function (msg, match) {       
-
+      let txt = menu.start_message;
       var fromId = msg.from.id;
       var chatId = msg.chat.id; 
-      bot.sendMessage(chatId, `Привет! Я бот для Вконтакте.`,menu.main);
-      api.init(fromId,chatId);
-      api.setCur(fromId,0);
-      api.setPrev(fromId,0);
-      api.get(fromId).message.getLongPollServer();
-    });
-
+      bot.sendMessage(chatId, txt,menu.start);
+    }); 
+    
     bot.on('callback_query', function (msg) {
         var chatId = msg.message.chat.id; 
         if (msg.data === 'make_as_read'){
@@ -101,19 +65,7 @@ exports.Run = function(config,api,callback){
     });
 
     bot.onText(/\/friends/, function (msg, match) {
-      var chatId = msg.chat.id;
-      var fromId = msg.from.id;
-      api.get(fromId).friends.get().then(result => {
-          let list = ``;
-          result.map((i,index) =>{
-              let status = i.online == 1 ? 'Online' : 'Offline';
-              list += `${i.first_name} ${i.last_name} (/id${i.id}) - ${status}\n`;
-              if(index === result.length-1) {bot.sendMessage(chatId, list);   }
-          })
-        },error => {
-          console.log("Rejected: " + error); 
-        }) ;
-      //bot.sendMessage(chatId, "All right,boss!");     
+        getFiends(msg);    
     });
 
     bot.onText(/\/dialogs/, function (msg, match) {
@@ -121,6 +73,11 @@ exports.Run = function(config,api,callback){
       var fromId = msg.from.id;
       dialogs(chatId,fromId);
       //bot.sendMessage(chatId, "All right,boss!");     
+    });   
+
+    bot.onText(/\/chatId/, (msg) => {
+      var chatId = msg.chat.id;
+      bot.sendMessage(chatId, chatId);
     });
 
     bot.onText(/\/chat(.+)/, function (msg, match) {
@@ -138,7 +95,7 @@ exports.Run = function(config,api,callback){
                     user_ids += i.from_id + ',';  if(index == result.length-1) resolve(user_ids);
                 });
             }).then(users_list => {           
-                api.users().get(api,users_list).then(users => {  
+                api.users().get(api,fromId,users_list).then(users => {  
                     let data = {};
                     return new Promise(function(resolve, reject){ 
                         users.map((i,index) =>{ data[i.id] = { first_name : i.first_name , last_name : i.last_name }; if(index == users.length-1) resolve(data);                   
@@ -162,20 +119,7 @@ exports.Run = function(config,api,callback){
     });
 
     bot.onText(/\*(.+)/, function (msg, match) {
-      var chatId = msg.chat.id;
-      var fromId = msg.from.id;
-      var resp = match[1];
-      api.get(fromId).friends.search(resp).then(result => {
-          let list = ``;
-          result.map((i,index) =>{
-            let status = i.online == 1 ? 'Online' : 'Offline';
-            let add = `write${i.id}${emoji.get('email')}`;
-            list += `${i.first_name} ${i.last_name} - ${status} -  /${add} \n`;
-            if(index === result.length-1) {bot.sendMessage(chatId, list);   }
-          })
-        },error => {
-          console.log("Rejected: " + error); 
-        }) ;
+        searchFriend(msg,math);
       //bot.sendMessage(chatId, "All right,boss!");     
     });
 
@@ -185,14 +129,28 @@ exports.Run = function(config,api,callback){
     bot.on('message', function (msg) {      
       var chatId = msg.chat.id;  
       var fromId = msg.from.id;
+      if(msg.text.match('https://oauth.vk.com/blank.html#access_token=')) {
+          auth(msg);
+          return;
+      } 
+      if(msg.text === `Старт! ${emoji.get('dizzy')}`){          
+          bot.sendMessage(chatId, menu.start_message, menu.start);  
+          return;
+      }
+
+      if(api.get(fromId) === undefined) { bot.sendMessage(chatId,`Следуй инструкции ${emoji.get('warning')}`, menu.start);   }
 
       if(msg.text.indexOf('/write') == 0) {var resp = msg.text.split('/write')[1]; api.setCur(fromId,resp);  return;} 
 
       if(msg.text.indexOf('/chat') == 0) {var resp = msg.text.split('/chat')[1]; api.setCur(fromId,resp);  return;} 
 
+      if(msg.text.indexOf('/dialogs') == 0) {var resp = msg.text.split('/dialogs')[1]; api.setCur(fromId,resp);  return;} 
+
       if(msg.text.indexOf('/id') == 0) {var resp = msg.text.split('/id')[1]; api.setCur(fromId,resp);  return;} 
 
       if(msg.text.indexOf('*') == 0) return;
+
+      
 
       if(msg.text === `Меню ${emoji.get('star')}`){          
           bot.sendMessage(chatId,`${emoji.get('ok_hand')}`, menu.main);  
@@ -222,17 +180,7 @@ exports.Run = function(config,api,callback){
       
 
       if(msg.text === `Список ${emoji.get('top')}`){          
-          api.get(fromId).friends.get().then(result => {
-            let list = ``;
-            result.map((i,index) =>{
-                let status = i.online == 1 ? 'Online' : 'Offline';
-                let add = `write${i.id}${emoji.get('email')}`;
-                list += `${i.first_name} ${i.last_name} - ${status} -  /${add} \n`;
-                if(index === result.length-1) { bot.sendMessage(chatId, list);   }
-            })
-          },error => {
-            console.log("Rejected: " + error); 
-          });  
+          getFiends(msg);
           return;
       }
 
@@ -249,6 +197,85 @@ exports.Run = function(config,api,callback){
         }
       }    
     });
+
+    function auth(msg){
+        var chatId = msg.chat.id;  
+        var fromId = msg.from.id;
+
+        var token = msg.text.match('token=(.*)&expires')[1];
+        var vk_id = msg.text.split('user_id=')[1];
+
+        bot.sendMessage(chatId, `Отлично!${emoji.get('tada')} Начнем!`,menu.main);
+        api.init(fromId,chatId,vk_id,token);
+        api.setCur(fromId,0);
+        api.setPrev(fromId,0);
+        api.get(fromId).message.getLongPollServer();
+    }
+
+    function getFiends(msg){
+        var chatId = msg.chat.id;  
+        var fromId = msg.from.id;
+        api.get(fromId).friends.get().then(result => {
+            let list = ``;
+            result.map((i,index) =>{
+                let status = i.online == 1 ? 'Online' : 'Offline';
+                let add = `write${i.id}${emoji.get('email')}`;
+                list += `${i.first_name} ${i.last_name} - ${status} -  /${add} \n`;
+                if(index === result.length-1) { bot.sendMessage(chatId, list);   }
+            })
+          },error => {
+            console.log("Rejected: " + error); 
+        });  
+    }
+
+    function searchFriend(msg,math){
+        var chatId = msg.chat.id;
+        var fromId = msg.from.id;
+        var resp = match[1];
+        api.get(fromId).friends.search(resp).then(result => {
+            let list = ``;
+            result.map((i,index) =>{
+              let status = i.online == 1 ? 'Online' : 'Offline';
+              let add = `write${i.id}${emoji.get('email')}`;
+              list += `${i.first_name} ${i.last_name} - ${status} -  /${add} \n`;
+              if(index === result.length-1) {bot.sendMessage(chatId, list);   }
+            })
+          },error => {
+            console.log("Rejected: " + error); 
+        }) ;
+    }
+
+    function dialogs (chatId,fromId) {
+      api.get(fromId).message.getDialogs()
+        .then(result => {
+            let user_ids = ``;           
+            return new Promise(function(resolve, reject){ 
+                result.map((i ,index ) => { 
+                    user_ids += i.message.user_id + ',';  if(index == result.length-1) resolve(user_ids);
+                });
+        })
+        .then(users_list => {          
+            api.users().get(api,fromId,users_list).then(users => {  
+                let data = {};
+                return new Promise(function(resolve, reject){ 
+                    users.map((i,index) =>{ data[i.id] = { first_name : i.first_name , last_name : i.last_name }; if(index == users.length-1) resolve(data);                   
+                  });
+                })
+        })
+        .then(user => {              
+            result.map((k,index) =>{  
+              let i = k.message;
+              let list = ``;  
+              let m = i.out === 0 ? i.user_id : api.get(fromId).vk_id; 
+              let title = i.title === ' ... ' ? `${user[i.user_id].first_name} ${user[i.user_id].last_name}` : i.title;
+              let chat = i.title === ' ... ' ? `chat${i.user_id} ${emoji.get('speech_balloon')}` : `chat0${i.chat_id} ${emoji.get('speech_balloon')}`;  
+              list = `${title} /${chat} \n${user[m].first_name} ${user[m].last_name} : ${i.body}\n`;
+              setTimeout(function(){bot.sendMessage(chatId, list)},index*200); 
+          });   
+        });                             
+        })          
+      }),error => { console.log("Rejected: " + error);  }
+    }  
     
     callback = callback || function() {};
     callback("Telegram bot");
