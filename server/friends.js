@@ -3,40 +3,28 @@ const request = require('request');
 const tm = require('./tm.js');
 
 class Friends {
-	get(user_id){
-		const options = {  
-		    url: 'https://api.vk.com/method/friends.get?v=5.52&access_token=ae39c04e191c8c304d9725b5991cd195202265fa36daf36c29d9cf19221e0ee9827506f56cb8ededa46c3',
-		    method: 'POST',
-		    json : true,
-		    qs : { "user_id":user_id, "order" : "random" , "count" : 15, "fields" : "city,online"}
-		};
-		return new Promise(function(resolve, reject){	
-			request(options, function(err, res, body) {  			    
-			    if (err) { 
-		            console.log(err);
-		            tm.Send("Ошибка при получении  списка друзей."); 
-		            reject(err);
-		        }  
-		        resolve(body.response.items);
+	constructor (api,user_id){
+		this.api = api;
+		this.user_id = user_id;
+		this.get = this.get.bind(this);
+		this.search = this.search.bind(this);
+	}
+	get(){
+		let api = this.api;
+		let user_id = this.user_id;
+		return new Promise(function(resolve, reject){
+			api.vk().request('friends.get', {'user_id' : user_id,"order" : "random" , "count" : 15, "fields" : "city,online"}, function(body) {
+			    resolve(body.response.items);
 			});
 		});
 	}
 
-	search(user_id,q){
-		const options = {  
-		    url: 'https://api.vk.com/method/friends.search?v=5.52&access_token=ae39c04e191c8c304d9725b5991cd195202265fa36daf36c29d9cf19221e0ee9827506f56cb8ededa46c3',
-		    method: 'POST',
-		    json : true,
-		    qs : { "user_id":user_id,"q" : q, "fields" : "city,online"}
-		};
-		return new Promise(function(resolve, reject){	
-			request(options, function(err, res, body) {  			    
-			    if (err) { 
-		            console.log(err);
-		            tm.Send("Ошибка при получении  списка друзей."); 
-		            reject(err);
-		        }  
-		        resolve(body.response.items);
+	search(q){
+		let api = this.api;
+		let user_id = this.user_id;
+		return new Promise(function(resolve, reject){
+			api.vk().request('friends.search', { "user_id" : user_id,"q" : q, "fields" : "city,online"}, function(body) {
+			    resolve(body.response.items);
 			});
 		});
 	}
