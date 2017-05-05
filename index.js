@@ -39,6 +39,8 @@ var api = {
 			friends : new Friends(api,id,vk_id),
 			chatId : chatId,
 			vk_id : vk_id,
+			menu_item : 'main',
+			vk_bot : { state : true , timer : 10000, text : "Ваше сообщение прочитано , Вам ответят позднее.С наилучшими пожеланиями, бот Иван."} ,
 			vk : function() { vk.setToken(token); return vk ; }
 		} 
 		setInterval(data[id].account.setOnline,5000);
@@ -47,6 +49,7 @@ var api = {
 	setPrev : function(id,prevUser) { data[id].prevUser = prevUser },
 	setCur : function(id,curUser) { data[id].curUser = curUser },
 	setLastMsg : function(id,msgId) { data[id].lastMsg = msgId },
+	setMenuItem : function(id,item) { data[id].menu_item = item },
 	get : function(id) { return data[id]; }
 }
 http.listen(process.env.PORT || 5000);

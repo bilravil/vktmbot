@@ -31,7 +31,7 @@ const menu = {
       reply_markup: {
         resize_keyboard: true,
         one_time_keyboard: false,
-        keyboard: [[`Друзья${emoji.get('couple')}`],[`Диалоги${emoji.get('speech_balloon')}`]]
+        keyboard: [[`Друзья${emoji.get('couple')}`],[`Диалоги${emoji.get('speech_balloon')}`],[`Настройки🛠️`]]
       }
     },
 
@@ -43,17 +43,17 @@ const menu = {
       }
     },
 
-    write_msg : {
-       parse_mode: 'markdown',
-       disable_web_page_preview: false,
-       reply_markup: JSON.stringify({
-           inline_keyboard: [
-              [ 
-                {text: `Написать сбщ ${emoji.get('lower-left-ballpoint-pen')}`, callback_data:'write_msg'}
-              ]
-           ]
-       })
+    settings : {
+      reply_markup: {
+        resize_keyboard: true,
+        one_time_keyboard: false,
+        keyboard: [[`Автоответчик ВК🗣️`],[`Меню ${emoji.get('star')}`]]
+      }
     },
+
+    
+
+    
 
     start_message : `Привет! Я бот для VK . Для начала  тебе  необходимо пройти по этой ссылке - https://vk.cc/6BdSa4 и дать доступ приложению. 
             Потом скопировать путь с адресной строки и отправить в этот  чат. 
