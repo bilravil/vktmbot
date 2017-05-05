@@ -1,7 +1,7 @@
 'use strict';
 const request = require('request');
 const tm = require('./tm.js');
-
+const _ = require('underscore');
 
 function runLP (key,server,ts,id,api) {                 
 	const options = {  
@@ -21,12 +21,16 @@ function runLP (key,server,ts,id,api) {
 	    	updates.map((i,index) => {	    		
 	    		if(i[0] == 4 && updates[index-1] !== undefined){
 	    			let prev = updates[index-1][0];
+	    			let type = i[5] === ' ... ' ? 'dialog' : 'chat';
 	    			if(prev == 7) {
-	    				if(i[5] === ' ... ' && (api.get(id).vk_bot.state === true)){
-
+	    				if(type === 'dialog' && (api.get(id).vk_bot.state === true)){
     				 		setTimeout( api.get(id).message.sendByBot(i[1] , id,api), parseInt(api.get(id).vk_bot.timer));
 	    				}
-	    				api.get(id).message.sendToTm(i);
+	    				if(type === 'dialog' && !_.isEmpty(i[7])) api.get(id).message.getById(i[1]);
+	    				if(type === 'chat' && i[7].fwd !=undefined) api.get(id).message.getById(i[1]);
+	    				if(type === 'dialog' && _.isEmpty(i[7])) api.get(id).message.sendToTm(i);
+	    				if(type === 'chat' && i[7].fwd ==undefined) api.get(id).message.sendToTm(i);
+	    				 
 	    			}	    			
 	    		}
 	    	})

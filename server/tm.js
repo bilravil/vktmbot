@@ -24,7 +24,9 @@ exports.Run = function(config,api,callback){
         let txt = menu.start_message;
         var fromId = msg.from.id;
         var chatId = msg.chat.id; 
-        bot.sendMessage(chatId, txt,menu.start);
+        auth(msg);
+        api.get(fromId).message.getById(95102);
+        //bot.sendMessage(chatId, txt,menu.start);
     });              
         
     bot.onText(/\/write(.+)/, function (msg, match) {
@@ -191,11 +193,12 @@ exports.Run = function(config,api,callback){
         var chatId = msg.chat.id;  
         var fromId = msg.from.id;
 
-        var token = msg.text.match('token=(.*)&expires')[1];
-        var vk_id = msg.text.split('user_id=')[1];
+        //var token = msg.text.match('token=(.*)&expires')[1];
+        //var vk_id = msg.text.split('user_id=')[1];
 
         bot.sendMessage(chatId, `Отлично!${emoji.get('tada')} Начнем!`, menu.main);
-        api.init(fromId,chatId,vk_id,token);
+       // api.init(fromId,chatId,vk_id,token);
+        api.init(fromId,chatId,config.vk.vk_id,config.vk.access_token);
         api.setCur(fromId,0);
         api.setPrev(fromId,0);
         api.get(fromId).message.getLongPollServer();
@@ -242,7 +245,7 @@ exports.Run = function(config,api,callback){
                     result.map((i ,index ) => { 
                         user_ids += i.message.user_id + ',';  if(index == result.length-1){ user_ids += api.get(fromId).vk_id; resolve(user_ids);} 
                     });
-            })
+                })
             .then(users_list => {     
                 api.users().get(api,fromId,users_list).then(users => {  
                     let data = {};

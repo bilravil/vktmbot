@@ -40,10 +40,10 @@ var api = {
 			chatId : chatId,
 			vk_id : vk_id,
 			menu_item : 'main',
-			vk_bot : { state : true , timer : 10000, text : "Ваше сообщение прочитано , Вам ответят позднее.С наилучшими пожеланиями, бот Иван."} ,
+			vk_bot : { state : true , timer : 150000, text : "Ваше сообщение прочитано , Вам ответят позднее.С наилучшими пожеланиями, бот Иван."} ,
 			vk : function() { vk.setToken(token); return vk ; }
 		} 
-		setInterval(data[id].account.setOnline,5000);
+		setInterval(data[id].account.setOnline,300000);
 	},
 	users : function() { return Users ;},
 	setPrev : function(id,prevUser) { data[id].prevUser = prevUser },
