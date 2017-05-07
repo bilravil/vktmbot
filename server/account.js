@@ -10,7 +10,7 @@ class Account  {
 	}
 
 	setOnline() {
-		this.api.get(this.id).vk().request('account.setOnline', {}, function(body) {});
+		if(this.api.get(this.id).vk_status) this.api.get(this.id).vk().request('account.setOnline', {}, function(body) {});
 	}
 }
 

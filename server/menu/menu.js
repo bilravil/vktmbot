@@ -2,7 +2,6 @@ const emoji = require('node-emoji');
 
 
 const menu = {
-
     start : {
       reply_markup: {
         resize_keyboard: true,
@@ -47,7 +46,7 @@ const menu = {
       reply_markup: {
         resize_keyboard: true,
         one_time_keyboard: false,
-        keyboard: [[`Автоответчик ВК🗣️`],[`Меню ${emoji.get('star')}`]]
+        keyboard: [[`Автоответчик ВК🗣️`],[`Статус ВК💡️`],[`Меню ${emoji.get('star')}`]]
       }
     },
 

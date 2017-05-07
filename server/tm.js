@@ -3,16 +3,33 @@
 const TelegramBot = require('node-telegram-bot-api');
 const emoji = require('node-emoji');
 const menu = require('./menu/menu.js');
+const main_menu = require('./menu/main_menu.js');
 const request = require('request');
+const settings_menu = require('./menu/settings.js');
 var token ;
 var bot ;
 
 
+
 exports.Send = function(api,fromId,msg,menu = {}){
     let chatId = api.get(fromId).chatId;
-    bot.sendMessage(chatId, msg, menu);    
-    
+    return new Promise(function(resolve, reject){
+        bot.sendMessage(chatId, msg, menu).then(msg => resolve(msg));
+    });
+          
 };
+
+exports.SendPhoto = function(api,fromId,photo,menu = {}){
+    let chatId = api.get(fromId).chatId;
+    bot.sendPhoto(chatId, photo, menu);
+          
+};
+exports.SendDoc = function(api,fromId,doc,menu = {}){
+    let chatId = api.get(fromId).chatId;
+    bot.sendDocument(chatId, doc, menu);
+          
+};
+
 
 exports.Run = function(config,api,callback){  
   
@@ -25,7 +42,7 @@ exports.Run = function(config,api,callback){
         var fromId = msg.from.id;
         var chatId = msg.chat.id; 
         auth(msg);
-        api.get(fromId).message.getById(95102);
+        api.get(fromId).message.handleAttch(95365);
         //bot.sendMessage(chatId, txt,menu.start);
     });              
         
@@ -47,18 +64,22 @@ exports.Run = function(config,api,callback){
     bot.onText(/\/dialogs/, function (msg, match) {
         var chatId = msg.chat.id;
         var fromId = msg.from.id;
-        dialogs(chatId,fromId);   
+        api.get(fromId).message.getDialogs();
+        //dialogs(chatId,fromId);   
     });   
 
     bot.onText(/\/chat(.+)/, function (msg, match) {
-        chat(msg,match);
+        var resp = match[1];
+        var fromId = msg.from.id;
+        api.get(fromId).message.getHistory(resp);
+        
     });    
 
     bot.on('message', function (msg,match) {
+        
         var chatId = msg.chat.id;  
         var fromId = msg.from.id;
-
-    
+        var message_id =  msg.message_id;
         if(msg.text.match('https://oauth.vk.com/blank.html#access_token=')) {
             auth(msg);
             return;
@@ -73,67 +94,28 @@ exports.Run = function(config,api,callback){
 
         if(msg.text.indexOf('/write') == 0) {var resp = msg.text.split('/write')[1]; api.setCur(fromId,resp);  return;} 
 
-        if(msg.text.indexOf('/chat') == 0) {var resp = msg.text.split('/chat')[1]; api.setCur(fromId,resp);  return;} 
+        if(msg.text.indexOf('/chat') == 0) { var resp = msg.text.split('/chat')[1]; api.setCur(fromId,resp);  return;} 
 
         if(msg.text.indexOf('/dialogs') == 0) {var resp = msg.text.split('/dialogs')[1]; api.setCur(fromId,resp);  return;}  
 
         if(msg.text.indexOf('*') == 0) return;
 
         if(api.get(fromId) !== undefined) { 
-            if(api.get(fromId).menu_item === 'search_friend') { searchFriend(msg,match); }
-            if(api.get(fromId).menu_item === 'settings.change_bot_text') { 
-                api.get(fromId).vk_bot.text = msg.text; 
-                bot.sendMessage(chatId,`Текст автоответчика изменен${emoji.get('ok_hand')}`, menu.settings); 
-                api.setMenuItem(fromId,'settings');      
-            }
+            let item = api.get(fromId).menu_item;
+            if(item === 'search_friend') { searchFriend(msg,match); }
+            if(item === 'settings' || item === 'settings.change_bot_text' || item === 'settings.change_vk_status') { settings_menu.settings(api,msg,match,bot); }
+            
         }   
 
         if(msg.text === `Меню ${emoji.get('star')}`){          
-            bot.sendMessage(chatId,`${emoji.get('ok_hand')}`, menu.main);  
+            bot.sendMessage(chatId,`${emoji.get('ok_hand')}`, main_menu.main(api.get(fromId).new_msg));  
             api.setMenuItem(fromId,'main');
             return;
-        }
-        
+        }     
 
         if(msg.text === `Настройки🛠️`){          
             bot.sendMessage(chatId,`${emoji.get('ok_hand')}`, menu.settings);  
             api.setMenuItem(fromId,'settings');
-            return;
-        }
-
-        if(msg.text === `Автоответчик ВК🗣️`){    
-            let txt = api.get(fromId).vk_bot.state ? 'Выключить🔕' :'Включить🔔';
-            let state = api.get(fromId).vk_bot.state ? 'Включен' :'Выключен';
-            var vk_bot_settings = {
-                reply_markup : {
-                    resize_keyboard : true,
-                    one_time_keyboard : false,
-                    keyboard : [[txt],['Изменить текст ответа📝'],[`Меню ${emoji.get('star')}`]]
-                }
-            };  
-            let msg = `📳Статус : ${state} \n\n📋Текст ответа : ${api.get(fromId).vk_bot.text} \n\n⏰Таймер : 150сек.`; 
-            bot.sendMessage(chatId,msg, vk_bot_settings);  
-            api.setMenuItem(fromId,'settings');
-            return;
-        }
-
-        if(msg.text === `Выключить🔕`){      
-            api.get(fromId).vk_bot.state = false;
-            bot.sendMessage(chatId,`Автоответчик выключен${emoji.get('ok_hand')}`, menu.settings);
-            api.setMenuItem(fromId,'settings');           
-            return;
-        }
-
-        if(msg.text === `Включить🔔`){    
-            api.get(fromId).vk_bot.state = true;      
-            bot.sendMessage(chatId,`Автоответчик включен${emoji.get('ok_hand')}`, menu.settings);
-            api.setMenuItem(fromId,'settings');           
-            return;
-        }
-
-        if(msg.text === `Изменить текст ответа📝`){          
-            bot.sendMessage(chatId,`Введи новый текст ответа📝`, menu.settings);
-            api.setMenuItem(fromId,'settings.change_bot_text');           
             return;
         }
 
@@ -143,15 +125,15 @@ exports.Run = function(config,api,callback){
             return;
         }
 
-        if(msg.text === `Диалоги${emoji.get('speech_balloon')}`){          
-            dialogs(chatId,fromId);       
-            api.setMenuItem(fromId,'dialogs');    
+        if(msg.text === `Сообщения${emoji.get('speech_balloon')}`){          
+            api.get(fromId).message.getDialogs();     
+            api.setMenuItem(fromId,'dialogs',main_menu.main(api.get(fromId).new_msg));    
             return;
         }
 
         if(msg.text === `Прочитано ${emoji.get('incoming_envelope')}`){          
             api.get(fromId).message.markAsRead(api.get(fromId).lastMsg);
-            bot.sendMessage(chatId,`${emoji.get('ok_hand')}`, menu.main);  
+            bot.sendMessage(chatId,`${emoji.get('ok_hand')}`, main_menu.main(api.get(fromId).new_msg));  
             return;
         }
 
@@ -181,11 +163,40 @@ exports.Run = function(config,api,callback){
         }    
     });
 
-    bot.on('callback_query', function (msg) {
+    bot.on('callback_query', function (msg,match) {
         var chatId = msg.message.chat.id; 
-        if (msg.data === 'make_as_read'){
+        var fromId = msg.from.id; 
+        var message_id =  msg.message.message_id;
+        if (msg.data.indexOf('/chat') == 0){
+            var resp = msg.data.split('/chat')[1];
+            let user_id = resp.split(';')[0];
+            let msg_id = resp.split(';')[1];
+            const opts = {
+                chat_id: chatId,
+                message_id: message_id,
+                reply_markup:main_menu.msg(user_id,msg_id,message_id).reply_markup
+            };
+
+            bot.editMessageText(`Действия`,opts); 
         }
-        if (msg.data === 'reply'){
+
+        if (msg.data.indexOf('/write') == 0){
+            var user_id = msg.data.split('/write')[1];
+            api.setCur(fromId,user_id);
+            bot.editMessageText(`Введите сообщение`,{chat_id: chatId, message_id: message_id});
+            api.get(fromId).new_msg -= 1;
+
+        }
+        if (msg.data.indexOf('/mark_as_read') == 0){
+            let msg_id = msg.data.split('/mark_as_read')[1];
+            
+            api.get(fromId).message.markAsRead(msg_id);
+            bot.editMessageText(`Сообщение прочитанно`,{chat_id: chatId, message_id: message_id});
+            api.get(fromId).new_msg -= 1;
+        }
+        if (msg.data.indexOf('/close_not') == 0){
+            var resp = msg.data.split('/close_not')[1];
+            bot.editMessageText(`Ok`,{chat_id: chatId, message_id: message_id}); 
         }
     }); 
 
@@ -195,13 +206,14 @@ exports.Run = function(config,api,callback){
 
         //var token = msg.text.match('token=(.*)&expires')[1];
         //var vk_id = msg.text.split('user_id=')[1];
-
-        bot.sendMessage(chatId, `Отлично!${emoji.get('tada')} Начнем!`, menu.main);
-       // api.init(fromId,chatId,vk_id,token);
         api.init(fromId,chatId,config.vk.vk_id,config.vk.access_token);
+        
+        
+        bot.sendMessage(chatId, `Отлично!${emoji.get('tada')} Начнем!`, main_menu.main(api.get(fromId).new_msg));
         api.setCur(fromId,0);
         api.setPrev(fromId,0);
         api.get(fromId).message.getLongPollServer();
+       // api.init(fromId,chatId,vk_id,token);       
     }
 
     function getFiends(msg){
@@ -212,7 +224,7 @@ exports.Run = function(config,api,callback){
             result.map((i,index) =>{
                 let status = i.online == 1 ? 'Online' : 'Offline';
                 let add = `write${i.id}${emoji.get('email')}`;
-                list += `${i.first_name} ${i.last_name} - ${status} -  /${add} \n`;
+                list += `${i.first_name} ${i.last_name} - ${status}\n/${add} \n`;
                 if(index === result.length-1) {list += `${emoji.get('warning')} Нажми напротив имени друга,чтобы ему написать ${emoji.get('warning')}`; bot.sendMessage(chatId, list);   }
             })
         },error => {
@@ -229,80 +241,12 @@ exports.Run = function(config,api,callback){
             result.map((i,index) =>{
                 let status = i.online == 1 ? 'Online' : 'Offline';
                 let add = `write${i.id}${emoji.get('email')}`;
-                list += `${i.first_name} ${i.last_name} - ${status} -  /${add} \n`;
+                list += `${i.first_name} ${i.last_name} - ${status} \n/${add} \n`;
                 if(index === result.length-1) {bot.sendMessage(chatId, list);   }
             })
         },error => {
           console.log("Rejected: " + error); 
         }) ;
-    }
-
-    function dialogs (chatId,fromId) {
-        api.get(fromId).message.getDialogs()
-            .then(result => {
-                let user_ids = ``;           
-                return new Promise(function(resolve, reject){ 
-                    result.map((i ,index ) => { 
-                        user_ids += i.message.user_id + ',';  if(index == result.length-1){ user_ids += api.get(fromId).vk_id; resolve(user_ids);} 
-                    });
-                })
-            .then(users_list => {     
-                api.users().get(api,fromId,users_list).then(users => {  
-                    let data = {};
-                    return new Promise(function(resolve, reject){ 
-                        users.map((i,index) =>{ data[i.id] = { first_name : i.first_name , last_name : i.last_name }; if(index == users.length-1) resolve(data);});
-                    })
-            })
-            .then(user => {    
-                result.map((k,index) =>{  
-                    let i = k.message;
-                    let list = ``;  
-                    let m = i.out === 0 ? i.user_id : api.get(fromId).vk_id; 
-                    let title = i.title === ' ... ' ? `${user[i.user_id].first_name} ${user[i.user_id].last_name}` : i.title;
-                    let chat = i.title === ' ... ' ? `chat${i.user_id} ${emoji.get('speech_balloon')}` : `chat0${i.chat_id} ${emoji.get('speech_balloon')}`;  
-                    list = `${title} /${chat} \n${user[m].first_name} : ${i.body}\n`;
-                    setTimeout(function(){bot.sendMessage(chatId, list)},index*200); 
-                });   
-            });                             
-            })          
-            }),error => { console.log("Rejected: " + error);  }
-    }  
-
-    function chat (msg,match){
-        var chatId = msg.chat.id;
-        var fromId = msg.from.id;
-        var resp = match[1];
-        var peer_id = resp.charAt(0) === '0' ? 2000000000 + parseInt(resp) : parseInt(resp);
-        var flag = resp.charAt(0) === '0' ? true : false;
-        api.setCur(fromId,peer_id);
-        api.get(fromId).message.getHistory(peer_id)
-            .then(result => {
-                let user_ids = ``;           
-                return new Promise(function(resolve, reject){ 
-                    result.map((i ,index ) => { 
-                        user_ids += i.from_id + ',';  if(index == result.length-1) resolve(user_ids);
-                    }); 
-                })
-            .then(users_list => {           
-                api.users().get(api,fromId,users_list).then(users => {  
-                    let data = {};
-                    return new Promise(function(resolve, reject){ 
-                        users.map((i,index) =>{ data[i.id] = { first_name : i.first_name , last_name : i.last_name }; if(index == users.length-1) resolve(data);});
-                    })
-            .then(user => {
-                result = result.reverse();
-                result.map((i,index) =>{     
-                    let list = ``;                     
-                    var time = new Date(Date.UTC(1970, 0, 1)); 
-                    time.setSeconds(i.date);                    
-                    var date = time.getHours() + ":" + time.getMinutes();
-                    list = `${user[i.from_id].first_name} ${user[i.from_id].last_name} ${date} \n ${i.body}\n`; 
-                    setTimeout(function(){bot.sendMessage(chatId, list,menu.chat)},index*200);
-                });
-            })                     
-            });
-            })
-            },error => { console.log("Rejected: " + error);  });  
     }
   
     callback = callback || function() {};

@@ -39,7 +39,9 @@ var api = {
 			friends : new Friends(api,id,vk_id),
 			chatId : chatId,
 			vk_id : vk_id,
+			vk_status : true,
 			menu_item : 'main',
+			new_msg : 0,
 			vk_bot : { state : true , timer : 150000, text : "Ваше сообщение прочитано , Вам ответят позднее.С наилучшими пожеланиями, бот Иван."} ,
 			vk : function() { vk.setToken(token); return vk ; }
 		} 
@@ -54,7 +56,3 @@ var api = {
 }
 http.listen(process.env.PORT || 5000);
 tm_bot.Run(config,api, function(name){ console.log(name + ' started.'); });
-
-setInterval(function() {
-    http1.get("http://afternoon-chamber-76804.herokuapp.com");
-}, 300000);
