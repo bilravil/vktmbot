@@ -41,9 +41,9 @@ exports.Run = function(config,api,logger,callback){
         let txt = menu.start_message;
         var fromId = msg.from.id;
         var chatId = msg.chat.id; 
-        auth(msg);
+        //auth(msg);
         //api.get(fromId).message.handleAttch(95365);
-        //bot.sendMessage(chatId, txt,menu.start);
+        bot.sendMessage(chatId, txt,menu.start);
     });              
         
     bot.onText(/\/settings/, function (msg, match) {
@@ -79,14 +79,20 @@ exports.Run = function(config,api,logger,callback){
         var resp = match[1];
         var fromId = msg.from.id;
         api.get(fromId).chat_offset = 0;
-        api.get(fromId).message.getHistory(resp,0);
-        
-    });    
+        api.get(fromId).message.getHistory(resp,0);        
+    });  
+
+    bot.onText(/\/help/, function (msg, match) {
+        var resp = match[1];
+        var chatId = msg.chat.id;
+        bot.sendMessage(chatId,menu.help,{parse_mode: "Markdown"});       
+    });  
 
     bot.on('message', function (msg,match) {
         
         var chatId = msg.chat.id;  
         var fromId = msg.from.id;
+
         var message_id =  msg.message_id;
         if(msg.text.match('https://oauth.vk.com/blank.html#access_token=')) {
             auth(msg);
@@ -98,13 +104,19 @@ exports.Run = function(config,api,logger,callback){
             return;
         }
 
-        if(api.get(fromId) === undefined) { bot.sendMessage(chatId,`Следуй инструкции ${emoji.get('warning')}`, menu.start);   }
+        if(api.get(fromId) === undefined && msg.text !== '/start') { bot.sendMessage(chatId,`Следуй инструкции ${emoji.get('warning')}`, menu.start);  return; }
 
-        if(msg.text.indexOf('/write') == 0) {var resp = msg.text.split('/write')[1]; api.setCur(fromId,resp);  return;} 
+        if(msg.text.indexOf('/start') == 0)  return;  
+
+        if(msg.text.indexOf('/write') == 0) { var resp = msg.text.split('/write')[1]; api.setCur(fromId,resp);  return;} 
 
         if(msg.text.indexOf('/chat') == 0) { var resp = msg.text.split('/chat')[1]; api.setCur(fromId,resp);  return;} 
 
-        if(msg.text.indexOf('/dialogs') == 0) {var resp = msg.text.split('/dialogs')[1]; api.setCur(fromId,resp);  return;}  
+        if(msg.text.indexOf('/dialogs') == 0)  return;  
+
+        if(msg.text.indexOf('/settings') == 0)  return;   
+
+        if(msg.text.indexOf('/help') == 0)  return;  
 
         if(msg.text.indexOf('*') == 0) return;
 
@@ -220,16 +232,16 @@ exports.Run = function(config,api,logger,callback){
         var chatId = msg.chat.id;  
         var fromId = msg.from.id;
 
-        //var token = msg.text.match('token=(.*)&expires')[1];
-        //var vk_id = msg.text.split('user_id=')[1];
-        api.init(fromId,chatId,config.vk.vk_id,config.vk.access_token);
-        
+        var token = msg.text.match('token=(.*)&expires')[1];
+        var vk_id = msg.text.split('user_id=')[1];
+        //api.init(fromId,chatId,config.vk.vk_id,config.vk.access_token);
+         api.init(fromId,chatId,vk_id,token);    
         
         bot.sendMessage(chatId, `Отлично!${emoji.get('tada')} Начнем!`, main_menu.main(api.get(fromId).new_msg));
         api.setCur(fromId,0);
         api.setPrev(fromId,0);
         api.get(fromId).message.getLongPollServer();
-       // api.init(fromId,chatId,vk_id,token);       
+          
     }
 
     function getFiends(msg){

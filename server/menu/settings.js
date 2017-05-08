@@ -8,7 +8,7 @@ function settings (api,msg,match,bot) {
 	var chatId = msg.chat.id;  
     var fromId = msg.from.id;
     
-	if(api.get(fromId).menu_item === 'settings.change_bot_text') { 
+	if(api.get(fromId).menu_item === 'settings.change_bot_text' ) { 
         api.get(fromId).vk_bot.text = msg.text; 
         bot.sendMessage(chatId,`Текст автоответчика изменен${emoji.get('ok_hand')}`, menu.settings); 
         api.setMenuItem(fromId,'settings');      
