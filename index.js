@@ -14,6 +14,10 @@ const Friends = require('./server/friends.js');
 const Users = require('./server/users.js');
 const config = require('./config.json');
 
+const log4js = require('log4js');
+const logger = log4js.getLogger();
+//logger.level = 'debug';
+
 const vk = new VK({
    'appId'     : config.vk.appId,
    'appSecret' : config.vk.appSecret,
@@ -34,15 +38,17 @@ var data = {} ;
 var api = {
 	init : function(id,chatId,vk_id,token) { 
 		data[id] = { 
-			message : new Message(api,id), 
+			message : new Message(api,id,logger), 
 			account : new Account(api,id),
 			friends : new Friends(api,id,vk_id),
 			chatId : chatId,
-			vk_id : vk_id,
-			vk_status : true,
+			vk_id : vk_id,			
 			menu_item : 'main',
 			new_msg : 0,
 			vk_bot : { state : true , timer : 150000, text : "Ваше сообщение прочитано , Вам ответят позднее.С наилучшими пожеланиями, бот Иван."} ,
+			vk_status : true,
+			dialog_offset : 0,
+			chat_offset : 0,
 			vk : function() { vk.setToken(token); return vk ; }
 		} 
 		setInterval(data[id].account.setOnline,300000);
@@ -55,4 +61,4 @@ var api = {
 	get : function(id) { return data[id]; }
 }
 http.listen(process.env.PORT || 5000);
-tm_bot.Run(config,api, function(name){ console.log(name + ' started.'); });
+tm_bot.Run(config,api,logger, function(name){ console.log(name + ' started.'); });

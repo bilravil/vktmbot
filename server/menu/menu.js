@@ -50,6 +50,14 @@ const menu = {
       }
     },
 
+    next_dialog_page : {
+        reply_markup: JSON.stringify({
+            inline_keyboard: [
+              [{ text: `Далее${emoji.get('arrow-right')}`, callback_data: `/nextDialogPage` }]              
+            ]
+        })
+    },
+
     
 
     

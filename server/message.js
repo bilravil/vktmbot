@@ -9,9 +9,10 @@ const main_menu = require('./menu/main_menu.js');
 
 
 class Message {
-    constructor (api,id){   
+    constructor (api,id,logger){   
         this.id = id;
         this.api = api;
+        this.logger = logger;
         this.sendToTm = this.sendToTm.bind(this);
         this.sendByBot = this.sendByBot.bind(this);
         this.send = this.send.bind(this);
@@ -24,10 +25,10 @@ class Message {
         this.getFwdUsers = this.getFwdUsers.bind(this);
         this.handleMessage = this.handleMessage.bind(this);
         this.handleAttch = this.handleAttch.bind(this);
+        
     }
 
     handleMessage(i){
-        console.log(i);
         let id = this.id;
         let api = this.api;
 
@@ -38,35 +39,33 @@ class Message {
         let msg_id = i[1];
         let type = i[5] === ' ... ' ? 'dialog' : 'chat';
         let fwd = i[7].fwd === undefined ? false : true;
-        
         if(type === 'dialog' && (api.get(id).vk_bot.state === true)){
             setTimeout( sendByBot(msg_id), parseInt(api.get(id).vk_bot.timer));
         }
         if(type === 'dialog' && !fwd )  sendToTm(i);
         else if(type === 'chat' && !fwd ) sendToTm(i);
+
         else if(type === 'dialog' && fwd ) getById(msg_id);
         else if(type === 'chat' && fwd ) getById(msg_id);
     }
 
 
     // отпрваить новые сбщ в телеграм
-    sendToTm(i) {                
+    sendToTm(i) {   
+                   
         let id = this.id;
         let api = this.api;
+        this.logger.debug(api.get(id).vk_id + " - SendToTm");  
+        let handleAttch = this.handleAttch.bind(this);
+
         let msg_id = i[1];
         let title = i[5];
         let user_id = title === ' ... ' ? i[3] : i[7].from ;        
         let text = i[6];
         let attch = i[7].attach1 === undefined ? false: true;
-        let handleAttch = this.handleAttch.bind(this);
+        
         if(api.get(id).lastMsg !== msg_id){
             Users.get(api,id,user_id).then(result => {
-                if(attch){
-                    handleAttch(msg_id).then(attch => {
-                        if(attch.photo !== undefined) attch.photo.map((i,index) =>{tm.SendPhoto(api,id,i);});
-                        if(attch.doc !== undefined) attch.doc.map((i,index) =>{tm.SendDoc(api,id,i);});
-                    });
-                }
                 let user = {};
                 user.first_name = result[0].first_name;
                 user.last_name = result[0].last_name;    
@@ -74,49 +73,43 @@ class Message {
                 if(title === ' ... ') i[7] = user; else i[8] = user;
                 let msg = title === ' ... ' ?
                 `${user.first_name} ${user.last_name}  : \n${i[6]} ` :
-                `${title} \n${i[8].first_name} : ${i[6]} ` ;  
+                `${title} \n${i[8].first_name} : ${i[6]} ` ;                  
+                if(attch){
+                    handleAttch(msg_id).then(attch => {
 
+                        if(attch.photo !== undefined) attch.photo.map((i,index) =>{
+                             if(api.get(id).curUser == i[3]) tm.SendPhoto(api,id,i,msg);
+                             else tm.SendPhoto(api,id,i,msg,main_menu.msg(i[3],i[1]));
+                         });
+                        if(attch.doc !== undefined) attch.doc.map((i,index) =>{ 
+                            if(api.get(id).curUser == i[3]) tm.SendDoc(api,id,i,msg);
+                            else tm.SendDoc(api,id,i,msg,main_menu.msg(i[3],i[1]));
+                            
+                        });
+                        if(attch.link !== undefined) attch.link.map((i,index) =>{
+                            msg += '\n' + i;
+                            if(api.get(id).curUser == i[3]) tm.Send(api,id,msg);
+                            else tm.Send(api,id,msg,main_menu.msg(i[3],i[1]));
+                        });
 
-                api.get(id).new_msg += 1;
-                let new_msg = {
-                    reply_markup: JSON.stringify({
-                        inline_keyboard: [
-                          [{ text: msg, callback_data: `/chat${user_id};${msg_id}` }]
-                        ]
-                    })
-                };
-                tm.Send(api,id,`Новых сообщений : ${api.get(id).new_msg}`,new_msg);
-                api.setLastMsg(id,msg_id);  
-                api.setMenuItem(id,'write_msg');
+                    });
+                }else {
+                    if(api.get(id).curUser == i[3]) tm.Send(api,id,msg);
+                    else tm.Send(api,id,msg,main_menu.msg(i[3],i[1]));
+                    api.setLastMsg(id,msg_id);  
+                    api.setMenuItem(id,'write_msg');
+                }
             },error => {
                 console.log("Rejected: " + error); 
             }) 
         } 
     }
-    // автоответчик для вк
-    sendByBot(message_ids) {   
-        let api = this.api;
-        let id = this.id;
-        return function(){
-            api.get(id).vk().request('messages.getById', {"message_ids" : message_ids}, function(body) {
-                body.response.items.map(i => {                                  
-                    if(i.title === " ... " && i.read_state === 0 && api.get(id).prevUser !== i.user_id){
-                        api.setPrev(id,i.user_id); 
-                        api.get(id).vk().request('messages.send', { "user_ids":i.user_id, "message" : api.get(id).vk_bot.text}, function(body) {});                 
-                    }                               
-                });  
-            });
-        }
-    }   
-
-    //отправить сбщ в вк
-    send(peer_id,msg) {
-        this.api.get(this.id).vk().request('messages.send', { "peer_id":peer_id , "message" : msg }, function(body) {});
-    }
 
     getById (message_ids){
         let api = this.api;
         let id = this.id;
+        this.logger.debug(api.get(id).vk_id + " - getById");  
+
         let  getFwdMessages = this.getFwdMessages.bind(this);
         let  getFwdUsers = this.getFwdUsers.bind(this);
         api.get(id).vk().request('messages.getById', {"message_ids" : message_ids}, function(body) {
@@ -126,7 +119,7 @@ class Message {
                 let user_ids = ``;
                 // определяем id все юзеров из сбщ
                 return new Promise(function(resolve, reject){ 
-                    getFwdUsers(i,i.from_id).then(fwd => {console.log(fwd); resolve(fwd); }).catch(error=>{console.log(error);});            
+                    getFwdUsers(i,i.from_id).then(fwd => {resolve(fwd); }).catch(error=>{console.log(error);});            
                 })
                 .then(users_list => {   
                     api.users().get(api,id,users_list).then(users => {      
@@ -149,7 +142,6 @@ class Message {
                             `${user[k.user_id].first_name} ${user[k.user_id].last_name}` 
                             : k.title + ` : \n${user[k.user_id].first_name} ${user[k.user_id].last_name}`
                             let msg = `${title}  : \n${body} \n  ${fwd_messages}`; 
-                            api.get(id).new_msg += 1;
                             let new_msg = {
                                 reply_markup: JSON.stringify({
                                     inline_keyboard: [
@@ -171,13 +163,18 @@ class Message {
     }
 
     // получение диалогов
-    getDialogs (){
+    getDialogs (offset = 0){
+        
         let api = this.api;
         let id = this.id;
+        let handleAttch = this.handleAttch.bind(this);
+        this.logger.debug(api.get(id).vk_id + " - getDialogs"); 
+
         let  getFwdMessages = this.getFwdMessages.bind(this);
         let  getFwdUsers = this.getFwdUsers.bind(this);
-        api.get(id).vk().request('messages.getDialogs', {'count' : 5}, function(body) {
+        api.get(id).vk().request('messages.getDialogs', {'offset':offset,'count' : 5}, function(body) {
             let result = body.response.items;
+            if(result.length === 0) {tm.Send(api,id,`Конец диалогам.`); return;}
             let user_ids = ``;    
             // определяем список id из диалогов     
             return new Promise(function(resolve, reject){ 
@@ -185,7 +182,7 @@ class Message {
                     i = i.message;
                     getFwdUsers(i,i.user_id).then( fwd => {                      
                         user_ids += fwd + ',';
-                        if(index == result.length-1) resolve(user_ids);
+                        if(index == result.length-1) {user_ids += api.get(id).vk_id; resolve(user_ids);}
                     }).catch(error=>{console.log(error);
                     });          
                 }); 
@@ -198,7 +195,8 @@ class Message {
                         users.map((i,index) =>{ data[i.id] = { first_name : i.first_name , last_name : i.last_name }; if(index == users.length-1) resolve(data);});
                     })
             })
-            .then(user => {    
+            .then(user => {   
+             
                 result.map((k,index) =>{  
                     let i = k.message;
                     let fwd_arr = i.fwd_messages === undefined ? undefined : i.fwd_messages;
@@ -206,13 +204,31 @@ class Message {
                         if(fwd_arr === undefined) resolve('');
                         else getFwdMessages(fwd_arr,user).then(fwd => { resolve(fwd); }).catch(error=>{console.log(error);});            
                     }).then(fwd_messages => {
+                        let attch = i.attachments === undefined ? false: true;
                         let fwd = fwd_messages !== '' ? `\n  Пересланное сбщ : ${fwd_messages}` : '';
                         let list = ``;  
                         let m = i.out === 0 ? i.user_id : api.get(id).vk_id; 
                         let title = i.title === ' ... ' ? `${user[i.user_id].first_name} ${user[i.user_id].last_name}` : i.title;
                         let chat = i.title === ' ... ' ? `chat${i.user_id} ${emoji.get('speech_balloon')}` : `chat0${i.chat_id} ${emoji.get('speech_balloon')}`;  
-                        list = `${title} /${chat} \n${user[m].first_name} : ${i.body} ${fwd}\n`;                
-                        setTimeout(function(){ tm.Send(api,id,list)},index*200); 
+                        list = `${title} /${chat} \n${user[m].first_name} : ${i.body} ${fwd}\n`;
+                        let menu = index === result.length-1 ? main_menu.next_dialog_page() : {};
+                        if(attch){
+                            handleAttch(i.id).then(attch => {
+                                if(attch.photo !== undefined) attch.photo.map((i,index) =>{
+                                    //tm.SendPhoto(api,id,i,list,menu);
+                                    list += `\n ${i}`;
+                                    tm.Send(api,id,list,menu);
+                                });
+                                if(attch.doc !== undefined) attch.doc.map((i,index) =>{
+                                    tm.SendDoc(api,id,i,list,menu);
+                                });
+                                if(attch.link !== undefined) attch.link.map((i,index) =>{
+                                    list += '\n' + i;
+                                    tm.Send(api,id,list),menu;
+                                });
+
+                            });
+                        }else  setTimeout(function(){ tm.Send(api,id,list,menu)},index*200); 
                     }) 
                 });   
             });                             
@@ -221,14 +237,22 @@ class Message {
     }
 
     // получении сообщений из опред. диалога
-    getHistory (resp){
+    getHistory (resp,offset = 0){
         let api = this.api;
         let id = this.id;
+        this.logger.debug(api.get(id).vk_id + " - getHistory");
+        let markAsRead = this.markAsRead.bind(this);
+
+        let handleAttch = this.handleAttch.bind(this);
         let  getFwdMessages = this.getFwdMessages.bind(this);
         let  getFwdUsers = this.getFwdUsers.bind(this);
+
         let peer_id = resp.charAt(0) === '0' ? 2000000000 + parseInt(resp) : parseInt(resp);
+        markAsRead(peer_id);
         api.setCur(id,peer_id);
-        api.get(id).vk().request('messages.getHistory', {'count' : 10 , "peer_id" : peer_id}, function(body) {
+        api.setMenuItem(id,'write_msg');
+
+        api.get(id).vk().request('messages.getHistory', {'offset':offset,'count' : 10 , "peer_id" : peer_id}, function(body) {
             let result = body.response.items;
             let user_ids = ``;                 
             return new Promise(function(resolve, reject){ 
@@ -247,6 +271,7 @@ class Message {
                         users.map((i,index) =>{ data[i.id] = { first_name : i.first_name , last_name : i.last_name }; if(index == users.length-1) resolve(data);});
                     })
             .then(user => {  
+                
                 result = result.reverse();
                 result.map((i,index) =>{   
                     let fwd_arr = i.fwd_messages === undefined ? undefined : i.fwd_messages; 
@@ -254,13 +279,28 @@ class Message {
                         if(fwd_arr === undefined) resolve('');
                         else getFwdMessages(fwd_arr,user).then(fwd => { resolve(fwd); }).catch(error=>{console.log(error);});            
                     }).then(fwd_messages => {
+                        let attch = i.attachments === undefined ? false: true;
                         let fwd = fwd_messages !== '' ? `\n  Пересланное сбщ : ${fwd_messages}` : '';
                         let list = ``;                     
                         var time = new Date(Date.UTC(1970, 0, 1)); 
                         time.setSeconds(i.date);                    
                         var date = time.getHours() + ":" + time.getMinutes();
-                        list = `${user[i.user_id].first_name} ${user[i.user_id].last_name} ${date} \n ${i.body}  ${fwd}\n`; 
-                        setTimeout(function(){ tm.Send(api,id,list)},index*200);
+                        list = `${user[i.from_id].first_name} ${user[i.from_id].last_name} ${date} \n ${i.body}  ${fwd}\n`;
+                        let menu = index === result.length-1 ? main_menu.next_chat_page() : {}; 
+                        if(attch){
+                            handleAttch(i.id).then(attch => {
+                                if(attch.photo !== undefined) attch.photo.map((i,index) =>{
+                                    tm.SendPhoto(api,id,i,list,menu);
+                                });
+                                if(attch.doc !== undefined) attch.doc.map((i,index) =>{
+                                    tm.SendDoc(api,id,i,list,menu);
+                                });
+                                if(attch.link !== undefined) attch.link.map((i,index) =>{
+                                    list += '\n' + i;
+                                    tm.Send(api,id,list,menu);
+                                });
+                            });
+                        }else setTimeout(function(){ tm.Send(api,id,list,menu)},index*200);
                     })  
                     
                 });
@@ -270,7 +310,7 @@ class Message {
         });     
     }
 
-    getFwdUsers(fwd_arr,user_id){
+    getFwdUsers(fwd_arr,user_id){ 
         return new Promise(function(resolve, reject){ 
             if(fwd_arr.fwd_messages === undefined) resolve(user_id);
             else {
@@ -292,28 +332,55 @@ class Message {
     }
 
     getFwdMessages(fwd_arr,user){
+        let handleAttch = this.handleAttch.bind(this);
+        let id = this.id;
+        let api = this.api;
         return new Promise(function(resolve, reject){ 
             let fwd_messages = ``;
-            (function get(fwd_arr) {
+            (function get(fwd_arr) {      
+
                 fwd_arr.map((i ,index ) => { 
+                    let attch = i.attachments === undefined ? false: true;
                     let body = i.body === '' ? 'Пересланное сбщ:' : i.body ;
                     fwd_messages += `${user[i.user_id].first_name} ${user[i.user_id].last_name} : ${body} \n    ` ;
-                    if(i.fwd_messages !== undefined) get(i.fwd_messages );
-                    if(i.fwd_messages == undefined && index == fwd_arr.length-1) { resolve(fwd_messages);};
+
+                    if(attch){
+                        handleAttch(0,i).then(attch => {
+                            if(attch.photo !== undefined) attch.photo.map((i,index) =>{
+                                fwd_messages += `\n ${i}`;
+                                //tm.SendPhoto(api,id,i);
+                            });
+                            if(attch.doc !== undefined) attch.doc.map((i,index) =>{
+                                fwd_messages += `\n ${i}`;
+                                //tm.SendDoc(api,id,i);
+                            });
+                            if(attch.link !== undefined) attch.link.map((i,index) =>{
+                                fwd_messages += `\n ${i}`;
+                            });
+                            if(i.fwd_messages !== undefined) get(i.fwd_messages );
+                            if(i.fwd_messages == undefined && index == fwd_arr.length-1) { resolve(fwd_messages);};   
+                        });                       
+                    }else{
+                        if(i.fwd_messages !== undefined) get(i.fwd_messages );
+                        if(i.fwd_messages == undefined && index == fwd_arr.length-1) { resolve(fwd_messages);}; 
+                    }
+                    
+                    
                 });
                 
             })(fwd_arr);
         });
     }
 
-    handleAttch(message_id){
+    handleAttch(message_id , i = undefined){
         let id = this.id;
         let api = this.api;
-        return new Promise(function(resolve, reject){ 
-           
+        
+        return new Promise(function(resolve, reject){           
             api.get(id).vk().request('messages.getById', {'message_ids' : message_id}, function(body) {
                 let attchs = [];
-                body.response.items[0].attachments.map((i,index) =>{
+                let main = i !== undefined ? i : body.response.items[0];
+                main.attachments.map((i,index) =>{
                     if(i.type === 'photo'){
                         let url ;
                         if(i.photo.photo_75 !== undefined) url = i.photo.photo_75;
@@ -322,19 +389,44 @@ class Message {
                         if(i.photo.photo_807 !== undefined) url = i.photo.photo_807;
                         if(i.photo.photo_1280 !== undefined) url = i.photo.photo_1280;
                         attchs.push(url);
-                        if(index == body.response.items[0].attachments.length-1) resolve({"photo":attchs});
+                        if(index == main.attachments.length-1) resolve({"photo":attchs});
                     }
                     if(i.type === 'doc'){
                         let url = i.doc.url;
                         attchs.push(url);
-                        if(index == body.response.items[0].attachments.length-1) resolve({"doc":attchs});
+                        if(index == main.attachments.length-1) resolve({"doc":attchs});
+                    }
+                    if(i.type === 'link'){
+                        let url = i.link.url;
+                        attchs.push(url);
+                        if(index == main.attachments.length-1) resolve({"link":attchs});
                     }
                     
                 })
                 
             });
+            });          
+    }
+
+    // автоответчик для вк
+    sendByBot(message_ids) {   
+        let api = this.api;
+        let id = this.id;
+        return function(){
+            api.get(id).vk().request('messages.getById', {"message_ids" : message_ids}, function(body) {
+                body.response.items.map(i => {                                  
+                    if(i.title === " ... " && i.read_state === 0 && api.get(id).prevUser !== i.user_id){
+                        api.setPrev(id,i.user_id); 
+                        api.get(id).vk().request('messages.send', { "user_ids":i.user_id, "message" : api.get(id).vk_bot.text}, function(body) {});                 
+                    }                               
+                });  
             });
-            
+        }
+    }   
+
+    //отправить сбщ в вк
+    send(peer_id,msg) {
+        this.api.get(this.id).vk().request('messages.send', { "peer_id":peer_id , "message" : msg }, function(body) {});
     }
 
     // пометить сбщ как прочитанное

@@ -17,16 +17,22 @@ function runLP (key,server,ts,id,api) {
 	    }  
 	    ts = body.ts;
 	    var updates = body.updates;
-	    if(updates.length !== 0){
-	    	updates.map((i,index) => {	    			    		
-	    		if(i[0] == 4 && updates[index-1] !== undefined){
-	    			let prev = updates[index-1][0];
-	    			if(prev == 7) {    				
-	    				api.get(id).message.handleMessage(i);	    				 
-	    			}	    			
-	    		}
-	    	})
+	    if(updates !== undefined && updates !== null){
+	    	if(updates.length !== 0){
+		    	updates.map((i,index) => {	    			    		
+		    		if(i[0] == 4 && updates[index-1] !== undefined){
+		    			let prev = updates[index-1][0];
+		    			if(prev == 7) {    				
+		    				api.get(id).message.handleMessage(i);	    				 
+		    			}	    			
+		    		}
+		    		if(i[0] == 80){
+		    			api.get(id).new_msg = i[1];	    			
+		    		}
+		    	})
+	    	}
 	    }
+	    
 	    runLP(key,server,ts,id,api);
 	    
 	});	

@@ -19,19 +19,19 @@ exports.Send = function(api,fromId,msg,menu = {}){
           
 };
 
-exports.SendPhoto = function(api,fromId,photo,menu = {}){
+exports.SendPhoto = function(api,fromId,photo,caption,menu = {}){
     let chatId = api.get(fromId).chatId;
-    bot.sendPhoto(chatId, photo, menu);
+    bot.sendPhoto(chatId, photo,{caption : caption}, menu);
           
 };
-exports.SendDoc = function(api,fromId,doc,menu = {}){
+exports.SendDoc = function(api,fromId,doc,caption,menu = {}){
     let chatId = api.get(fromId).chatId;
-    bot.sendDocument(chatId, doc, menu);
+    bot.sendDocument(chatId, doc,{caption : caption}, menu);
           
 };
 
 
-exports.Run = function(config,api,callback){  
+exports.Run = function(config,api,logger,callback){  
   
     token = config.tm.token;
     bot = new TelegramBot(token, { polling: true });
@@ -42,15 +42,22 @@ exports.Run = function(config,api,callback){
         var fromId = msg.from.id;
         var chatId = msg.chat.id; 
         auth(msg);
-        api.get(fromId).message.handleAttch(95365);
+        //api.get(fromId).message.handleAttch(95365);
         //bot.sendMessage(chatId, txt,menu.start);
     });              
+        
+    bot.onText(/\/settings/, function (msg, match) {
+        var chatId = msg.chat.id;
+        bot.sendMessage(chatId,`${emoji.get('ok_hand')}`, menu.settings);
+        api.setMenuItem(fromId,'settings');
+    });
         
     bot.onText(/\/write(.+)/, function (msg, match) {
         var chatId = msg.chat.id;
         var resp = match[1];
         var fromId = msg.from.id;
         api.setCur(fromId,resp);
+        api.setMenuItem(fromId,'write_msg');
     });
 
     bot.onText(/\/friends/, function (msg, match) {
@@ -64,14 +71,15 @@ exports.Run = function(config,api,callback){
     bot.onText(/\/dialogs/, function (msg, match) {
         var chatId = msg.chat.id;
         var fromId = msg.from.id;
-        api.get(fromId).message.getDialogs();
-        //dialogs(chatId,fromId);   
+        api.get(fromId).message.getDialogs(0);
+        api.get(fromId).dialog_offset = 0;
     });   
 
     bot.onText(/\/chat(.+)/, function (msg, match) {
         var resp = match[1];
         var fromId = msg.from.id;
-        api.get(fromId).message.getHistory(resp);
+        api.get(fromId).chat_offset = 0;
+        api.get(fromId).message.getHistory(resp,0);
         
     });    
 
@@ -125,9 +133,11 @@ exports.Run = function(config,api,callback){
             return;
         }
 
-        if(msg.text === `Сообщения${emoji.get('speech_balloon')}`){          
-            api.get(fromId).message.getDialogs();     
-            api.setMenuItem(fromId,'dialogs',main_menu.main(api.get(fromId).new_msg));    
+        if(msg.text.indexOf(`Сообщения${emoji.get('speech_balloon')}`) == 0){          
+            api.setMenuItem(fromId,'dialogs'); 
+            api.get(fromId).message.getDialogs(0);
+            api.get(fromId).dialog_offset = 0;     
+               
             return;
         }
 
@@ -177,27 +187,33 @@ exports.Run = function(config,api,callback){
                 reply_markup:main_menu.msg(user_id,msg_id,message_id).reply_markup
             };
 
-            bot.editMessageText(`Действия`,opts); 
+            bot.editMessageText(msg_text,opts); 
         }
 
         if (msg.data.indexOf('/write') == 0){
+            api.setMenuItem(fromId,'write_msg');
             var user_id = msg.data.split('/write')[1];
             api.setCur(fromId,user_id);
             bot.editMessageText(`Введите сообщение`,{chat_id: chatId, message_id: message_id});
-            api.get(fromId).new_msg -= 1;
-
         }
         if (msg.data.indexOf('/mark_as_read') == 0){
-            let msg_id = msg.data.split('/mark_as_read')[1];
-            
+            let msg_id = msg.data.split('/mark_as_read')[1];            
             api.get(fromId).message.markAsRead(msg_id);
-            bot.editMessageText(`Сообщение прочитанно`,{chat_id: chatId, message_id: message_id});
-            api.get(fromId).new_msg -= 1;
+            bot.editMessageText(`Сообщение прочитано`,{chat_id: chatId, message_id: message_id});
         }
         if (msg.data.indexOf('/close_not') == 0){
-            var resp = msg.data.split('/close_not')[1];
+            var message_id =  msg.message.message_id;
             bot.editMessageText(`Ok`,{chat_id: chatId, message_id: message_id}); 
         }
+        if (msg.data === `/nextDialogPage`){
+            let offset = (api.get(fromId).dialog_offset += 5);
+            api.get(fromId).message.getDialogs(offset); 
+        }
+        if (msg.data === `/nextChatPage`){
+            let offset = (api.get(fromId).chat_offset += 5);
+            api.get(fromId).message.getHistory(api.get(fromId).curUser.toString(),offset);
+        }
+        
     }); 
 
     function auth(msg){
@@ -237,12 +253,14 @@ exports.Run = function(config,api,callback){
         var fromId = msg.from.id;
         var resp = match === undefined ? msg.text : match[1];
         api.get(fromId).friends.search(resp).then(result => {
-            let list = ``;
+            
             result.map((i,index) =>{
+                let list = ``;
                 let status = i.online == 1 ? 'Online' : 'Offline';
                 let add = `write${i.id}${emoji.get('email')}`;
-                list += `${i.first_name} ${i.last_name} - ${status} \n/${add} \n`;
-                if(index === result.length-1) {bot.sendMessage(chatId, list);   }
+                list = `${i.first_name} ${i.last_name} - ${status}`;
+               // if(index === result.length-1) {
+                bot.sendMessage(chatId, list,main_menu.friend(i.id));   //}
             })
         },error => {
           console.log("Rejected: " + error); 
