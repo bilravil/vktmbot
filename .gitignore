@@ -9,7 +9,6 @@ bower_components
 #WebStorme
 .idea
 
-config.json
 
 *.suo
 *.csproj.user
