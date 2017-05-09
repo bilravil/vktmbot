@@ -6,7 +6,7 @@ const tm_bot = require('./server/tm.js');
 var app = express();
 var http = require('http').Server(app);
 var http1 = require('http');
-
+const emoji = require('node-emoji');
 
 const Message = require('./server/message.js');
 const Account = require('./server/account.js');
@@ -51,8 +51,9 @@ var api = {
 			chatId : chatId,
 			vk_id : vk_id,			
 			menu_item : 'main',
+			dialogs : { menu : [[`Меню ${emoji.get('star')}`,`Сообщения${emoji.get('speech_balloon')}`],[]]	},
 			new_msg : 0,
-			vk_bot : { state : true , timer : 150000, text : "Ваше сообщение прочитано , Вам ответят позднее.С наилучшими пожеланиями, бот Иван."} ,
+			vk_bot : { state : true , timer : 150000, text : "Привет, я пока не могу ответить, сделаю это чуть позже. Это сообщение отправлено ботом Иваном из https://t.me/VkAssistBot"} ,
 			vk_status : true,
 			dialog_offset : 0,
 			chat_offset : 0,

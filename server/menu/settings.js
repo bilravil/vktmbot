@@ -3,11 +3,19 @@ const request = require('request');
 const _ = require('underscore');
 const emoji = require('node-emoji');
 const menu = require('./menu.js');
+const main_menu = require('./main_menu.js');
 
 function settings (api,msg,match,bot) {    
 	var chatId = msg.chat.id;  
     var fromId = msg.from.id;
-    
+
+    if(msg.text === `Меню ${emoji.get('star')}`){    
+        api.setCur(fromId,undefined);      
+        bot.sendMessage(chatId,`${emoji.get('ok_hand')}`, main_menu.main(api.get(fromId).new_msg));  
+        api.setMenuItem(fromId,'main');
+        return;
+    }   
+
 	if(api.get(fromId).menu_item === 'settings.change_bot_text' ) { 
         api.get(fromId).vk_bot.text = msg.text; 
         bot.sendMessage(chatId,`Текст автоответчика изменен${emoji.get('ok_hand')}`, menu.settings); 

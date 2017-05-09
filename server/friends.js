@@ -15,7 +15,7 @@ class Friends {
 		let user_id = this.user_id;
 		let id = this.id;
 		return new Promise(function(resolve, reject){
-			api.get(id).vk().request('friends.get', {'user_id' : user_id,"order" : "random" , "count" : 15, "fields" : "city,online"}, function(body) {
+			api.get(id).vk().request('friends.get', {'user_id' : user_id,"order" : "hints" , "count" : 15, "fields" : "city,online"}, function(body) {
 			    resolve(body.response.items);
 			});
 		});

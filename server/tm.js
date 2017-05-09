@@ -8,7 +8,7 @@ const request = require('request');
 const settings_menu = require('./menu/settings.js');
 var token ;
 var bot ;
-
+const _ = require('underscore');
 
 
 exports.Send = function(api,fromId,msg,menu = {}){
@@ -123,24 +123,27 @@ exports.Run = function(config,api,logger,callback){
 
         if(api.get(fromId) !== undefined) { 
             let item = api.get(fromId).menu_item;
-            if(item === 'search_friend') { searchFriend(msg,match); }
-            if(item === 'settings' || item === 'settings.change_bot_text' || item === 'settings.change_vk_status') { settings_menu.settings(api,msg,match,bot); }
+            if(item === 'search_friend') { searchFriend(msg,match);}
+            if(item === 'settings' || item === 'settings.change_bot_text' || item === 'settings.change_vk_status') { settings_menu.settings(api,msg,match,bot); return;}
             
         }   
 
-        if(msg.text === `Меню ${emoji.get('star')}`){          
+        if(msg.text === `Меню ${emoji.get('star')}`){    
+            api.setCur(fromId,undefined);      
             bot.sendMessage(chatId,`${emoji.get('ok_hand')}`, main_menu.main(api.get(fromId).new_msg));  
             api.setMenuItem(fromId,'main');
             return;
         }     
 
-        if(msg.text === `Настройки🛠️`){          
+        if(msg.text === `Настройки🛠️`){ 
+            api.setCur(fromId,undefined);         
             bot.sendMessage(chatId,`${emoji.get('ok_hand')}`, menu.settings);  
             api.setMenuItem(fromId,'settings');
             return;
         }
 
-        if(msg.text === `Друзья${emoji.get('couple')}`){          
+        if(msg.text === `Друзья${emoji.get('couple')}`){      
+            api.setCur(fromId,undefined);    
             bot.sendMessage(chatId,`${emoji.get('ok_hand')}`, menu.friends);
             api.setMenuItem(fromId,'friends');           
             return;
@@ -148,6 +151,7 @@ exports.Run = function(config,api,logger,callback){
 
         if(msg.text.indexOf(`Сообщения${emoji.get('speech_balloon')}`) == 0){          
             api.setMenuItem(fromId,'dialogs'); 
+            api.setCur(fromId,undefined);
             api.get(fromId).message.getDialogs(0);
             api.get(fromId).dialog_offset = 0;     
                
@@ -172,17 +176,23 @@ exports.Run = function(config,api,logger,callback){
         }
 
         if(msg.text === `Поиск${emoji.get('mag')}`){          
-            api.get(fromId).message.markAsRead(api.get(fromId).lastMsg);
             bot.sendMessage(chatId,`Имя друга `);  
             api.setMenuItem(fromId,'search_friend');
             return;
+        } 
+        if(msg.text.match('<(.*)>') !== null ){
+            if (msg.text.match('<(.*)>')[1].indexOf('/chat') === 0){
+                let curUser = msg.text.match('<(.*)>')[1].split('/chat')[1];
+                api.setCur(fromId,curUser);
+                return;
+            } 
         }
-
+        
 
         if ( api.get(fromId) !== undefined) {
-            if(api.get(fromId).menu_item === 'write_msg'){
+            if(api.get(fromId).menu_item === 'write_msg' && api.get(fromId).curUser !== undefined){
                 api.get(fromId).message.send(api.get(fromId).curUser,msg.text);
-            }
+            }else if(api.get(fromId).curUser === undefined && api.get(fromId).menu_item !== 'search_friend') bot.sendMessage(chatId,`Выбери собеседника.`);
         }    
     });
 
@@ -218,14 +228,27 @@ exports.Run = function(config,api,logger,callback){
             var message_id =  msg.message.message_id;
             bot.editMessageText(`Ok`,{chat_id: chatId, message_id: message_id}); 
         }
-        if (msg.data === `/nextDialogPage`){
+        if (msg.data === `/next_dialog_page`){
             let offset = (api.get(fromId).dialog_offset += 5);
             api.get(fromId).message.getDialogs(offset); 
         }
-        if (msg.data === `/nextChatPage`){
+        if (msg.data === `/next_chat_page`){
             let offset = (api.get(fromId).chat_offset += 5);
             api.get(fromId).message.getHistory(api.get(fromId).curUser.toString(),offset);
         }
+
+        if (msg.data.indexOf('/close_chat') == 0){
+            api.setCur(fromId,undefined);
+            let title = msg.data.split('/close_chat')[1];                   
+            let tmp = _.without(api.get(fromId).dialogs.menu[1], title);
+            api.get(fromId).dialogs.menu[1] = tmp;
+            bot.sendMessage(chatId,'Ok',main_menu.dialogs(api.get(fromId).dialogs.menu));
+        }
+            
+            
+        
+
+        
         
     }); 
 
@@ -239,7 +262,7 @@ exports.Run = function(config,api,logger,callback){
          api.init(fromId,chatId,vk_id,token);    
         
         bot.sendMessage(chatId, `Отлично!${emoji.get('tada')} Начнем!`, main_menu.main(api.get(fromId).new_msg));
-        api.setCur(fromId,0);
+        api.setCur(fromId,undefined);
         api.setPrev(fromId,0);
         api.get(fromId).message.getLongPollServer();
           
@@ -250,6 +273,8 @@ exports.Run = function(config,api,logger,callback){
         var fromId = msg.from.id;
         api.get(fromId).friends.get().then(result => {
             let list = ``;
+
+            if(result.length === 0 ){ bot.sendMessage(chatId, `Нет у тебя друзей`); return;}
             result.map((i,index) =>{
                 let status = i.online == 1 ? 'Online' : 'Offline';
                 let add = `write${i.id}${emoji.get('email')}`;
@@ -266,7 +291,7 @@ exports.Run = function(config,api,logger,callback){
         var fromId = msg.from.id;
         var resp = match === undefined ? msg.text : match[1];
         api.get(fromId).friends.search(resp).then(result => {
-            
+            //if(result.length === 0 ){ bot.sendMessage(chatId, `Нет у тебя такого друга.`); return;}
             result.map((i,index) =>{
                 let list = ``;
                 let status = i.online == 1 ? 'Online' : 'Offline';

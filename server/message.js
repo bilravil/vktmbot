@@ -5,7 +5,7 @@ const LongPoll = require('./longpoll.js');
 const tm = require('./tm.js');
 const emoji = require('node-emoji');
 const main_menu = require('./menu/main_menu.js');
-
+const _ = require('underscore');
 
 
 class Message {
@@ -20,6 +20,7 @@ class Message {
         this.markAsRead = this.markAsRead.bind(this);
         this.getLongPollServer = this.getLongPollServer.bind(this);
         this.getHistory = this.getHistory.bind(this);
+        this.getChat = this.getChat.bind(this);
         this.getById = this.getById.bind(this);
         this.getFwdMessages = this.getFwdMessages.bind(this);
         this.getFwdUsers = this.getFwdUsers.bind(this);
@@ -172,6 +173,7 @@ class Message {
 
         let  getFwdMessages = this.getFwdMessages.bind(this);
         let  getFwdUsers = this.getFwdUsers.bind(this);
+        
         api.get(id).vk().request('messages.getDialogs', {'offset':offset,'count' : 5}, function(body) {
             let result = body.response.items;
             if(result.length === 0) {tm.Send(api,id,`Конец диалогам.`); return;}
@@ -211,7 +213,9 @@ class Message {
                         let title = i.title === ' ... ' ? `${user[i.user_id].first_name} ${user[i.user_id].last_name}` : i.title;
                         let chat = i.title === ' ... ' ? `chat${i.user_id} ${emoji.get('speech_balloon')}` : `chat0${i.chat_id} ${emoji.get('speech_balloon')}`;  
                         list = `${title} /${chat} \n${user[m].first_name} : ${i.body} ${fwd}\n`;
+                        
                         let menu = index === result.length-1 ? main_menu.next_dialog_page() : {};
+                        if(index === 0) menu = main_menu.dialogs(api.get(id).dialogs.menu);
                         if(attch){
                             handleAttch(i.id).then(attch => {
                                 if(attch.photo !== undefined) attch.photo.map((i,index) =>{
@@ -241,14 +245,15 @@ class Message {
         let api = this.api;
         let id = this.id;
         this.logger.debug(api.get(id).vk_id + " - getHistory");
-        let markAsRead = this.markAsRead.bind(this);
-
+        let getChat = this.getChat.bind(this);
         let handleAttch = this.handleAttch.bind(this);
         let  getFwdMessages = this.getFwdMessages.bind(this);
         let  getFwdUsers = this.getFwdUsers.bind(this);
 
         let peer_id = resp.charAt(0) === '0' ? 2000000000 + parseInt(resp) : parseInt(resp);
-        markAsRead(peer_id);
+
+        let title = resp.charAt(0) === '0' ? getChat(resp).then(res=>title = res +` </chat${peer_id}>`) : ``;
+
         api.setCur(id,peer_id);
         api.setMenuItem(id,'write_msg');
 
@@ -279,6 +284,20 @@ class Message {
                         if(fwd_arr === undefined) resolve('');
                         else getFwdMessages(fwd_arr,user).then(fwd => { resolve(fwd); }).catch(error=>{console.log(error);});            
                     }).then(fwd_messages => {
+                        
+ 
+                        if(title === '') title = `${user[i.user_id].first_name} ${user[i.user_id].last_name}</chat${peer_id}>`;
+                        let menu = index === result.length-1 ? main_menu.next_chat_page(title) : {}; 
+                        if(index === 0) {                         
+                            let dialogs = api.get(id).dialogs.menu[1];
+                            if(!_.contains(dialogs, title)){
+                                api.get(id).dialogs.menu[1].push(title);                               
+                            }                                                           
+                            menu = main_menu.dialogs(api.get(id).dialogs.menu);
+                            
+                            
+                             
+                        }
                         let attch = i.attachments === undefined ? false: true;
                         let fwd = fwd_messages !== '' ? `\n  Пересланное сбщ : ${fwd_messages}` : '';
                         let list = ``;                     
@@ -286,7 +305,9 @@ class Message {
                         time.setSeconds(i.date);                    
                         var date = time.getHours() + ":" + time.getMinutes();
                         list = `${user[i.from_id].first_name} ${user[i.from_id].last_name} ${date} \n ${i.body}  ${fwd}\n`;
-                        let menu = index === result.length-1 ? main_menu.next_chat_page() : {}; 
+
+
+
                         if(attch){
                             handleAttch(i.id).then(attch => {
                                 if(attch.photo !== undefined) attch.photo.map((i,index) =>{
@@ -308,6 +329,11 @@ class Message {
             }),error => { console.log("Rejected: " + error);  };    
             }),error => { console.log("Rejected: " + error);  };    
         });     
+    }
+
+    getChat(chat_id){
+        return new Promise((resolve,reject) => this.api.get(this.id).vk().request('messages.getChat', { "chat_id":chat_id }, body =>  resolve(body.response.title) ))
+        
     }
 
     getFwdUsers(fwd_arr,user_id){ 
@@ -434,7 +460,7 @@ class Message {
         let api = this.api;
         let id = this.id;
         api.get(id).vk().request('messages.markAsRead', {'message_ids' : message_ids}, function(body) {
-            
+            console.log(body);
         });
     }
 

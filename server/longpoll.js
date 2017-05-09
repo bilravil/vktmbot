@@ -16,7 +16,36 @@ function runLP (key,server,ts,id,api) {
 	        tm.Send(api,id,"Ошибка при работе с longPollServer"); 
 	        runLP(key,server,ts,id,api);
 	    }  
-	    ts = body.ts;
+	    if(body.failed !== undefined){
+	    	console.log(body);
+	    	let err_type = body.failed;
+	    	if(err_type === 1){	    		
+	    		ts = body.ts;
+	    		polling(body,key,server,ts,id,api);
+	    	}
+	    	if(err_type === 2){
+	    		getNewKey(id,api).then(result =>{
+	    			key = result.key;
+	    			polling(body,key,server,ts,id,api);
+	    		})
+	    		
+	    	}
+	    	if(err_type === 3){
+	    		getNewKey(id,api).then(result =>{
+	    			key = result.key;
+	    			ts = result.ts;
+	    			polling(body,key,server,ts,id,api);
+	    		})    		
+	    	}
+	    }else polling(body,key,server,ts,id,api);
+	    
+	    																			
+	    
+	});	
+}
+
+function polling(body,key,server,ts,id,api){
+	if(body.ts !== undefined) ts = body.ts;
 	    var updates = body.updates;
 	    if(updates !== undefined && updates !== null){
 	    	
@@ -34,11 +63,24 @@ function runLP (key,server,ts,id,api) {
 		    	})
 	    	}
 	    }
-	    let date = new Date().getHours() + ':' + new Date().getMinutes();
-	    console.log(date + ' - '+ts);
-	    runLP(key,server,ts,id,api);
 	    
-	});	
+    runLP(key,server,ts,id,api);
+}
+
+function getNewKey(id,api){
+	return new Promise(function(resolve, reject){
+		api.get(id).vk().request('messages.getLongPollServer', { }, function(body) {
+			let res = {};
+            let key = body.response.key; 
+            let server = body.response.server;
+            let ts = body.response.ts; 
+            res = {
+            	key : key,
+            	ts : ts
+            }
+            resolve(res);
+        });
+	})
 }
 
 
