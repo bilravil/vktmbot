@@ -14,10 +14,12 @@ function runLP (key,server,ts,id,api) {
 	    if (err) { 
 	        console.log(err);
 	        tm.Send(api,id,"Ошибка при работе с longPollServer"); 
+	        runLP(key,server,ts,id,api);
 	    }  
 	    ts = body.ts;
 	    var updates = body.updates;
 	    if(updates !== undefined && updates !== null){
+	    	
 	    	if(updates.length !== 0){
 		    	updates.map((i,index) => {	    			    		
 		    		if(i[0] == 4 && updates[index-1] !== undefined){
@@ -32,7 +34,8 @@ function runLP (key,server,ts,id,api) {
 		    	})
 	    	}
 	    }
-	    
+	    let date = new Date().getHours() + ':' + new Date().getMinutes();
+	    console.log(date + ' - '+ts);
 	    runLP(key,server,ts,id,api);
 	    
 	});	

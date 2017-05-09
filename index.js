@@ -28,9 +28,16 @@ vk.setSecureRequests(true);
 
 vk.on('http-error', function(_e) {
     console.log(_e);
+    logger.debug("http-error" + _e);
 });
 vk.on('parse-error', function(_e) {
     console.log(_e);
+    logger.debug("parse-error" + _e);
+});
+
+http.on('error', function(err) {
+	console.log(err);
+	logger.debug("error" + err);
 });
 
 var data = {} ;
@@ -62,3 +69,7 @@ var api = {
 }
 http.listen(process.env.PORT || 5000);
 tm_bot.Run(config,api,logger, function(name){ console.log(name + ' started.'); });
+
+process.on('uncaughtException', function(err) {
+    console.log(err);
+});

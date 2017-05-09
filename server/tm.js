@@ -48,6 +48,7 @@ exports.Run = function(config,api,logger,callback){
         
     bot.onText(/\/settings/, function (msg, match) {
         var chatId = msg.chat.id;
+        var fromId = msg.from.id;
         bot.sendMessage(chatId,`${emoji.get('ok_hand')}`, menu.settings);
         api.setMenuItem(fromId,'settings');
     });
