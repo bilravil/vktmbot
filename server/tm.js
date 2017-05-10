@@ -90,7 +90,6 @@ exports.Run = function(config,api,logger,callback){
     });  
 
     bot.on('message', function (msg,match) {
-        console.log(msg);
         var chatId = msg.chat.id;  
         var fromId = msg.from.id;
 
