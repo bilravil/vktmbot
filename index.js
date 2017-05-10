@@ -53,8 +53,8 @@ var api = {
 			menu_item : 'main',
 			dialogs : { menu : [[`Меню ${emoji.get('star')}`,`Сообщения${emoji.get('speech_balloon')}`],[]]	},
 			new_msg : 0,
-			vk_bot : { state : true , timer : 150000, text : "Привет, я пока не могу ответить, сделаю это чуть позже. Это сообщение отправлено ботом Иваном из https://t.me/VkAssistBot"} ,
-			vk_status : true,
+			vk_bot : { state : false , timer : 300000, text : "Привет, я пока не могу ответить, сделаю это чуть позже. Это сообщение отправлено автоматически из https://t.me/VkAssistBot"} ,
+			vk_status : false,
 			dialog_offset : 0,
 			chat_offset : 0,
 			vk : function() { vk.setToken(token); return vk ; }

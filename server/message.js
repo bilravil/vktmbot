@@ -249,11 +249,10 @@ class Message {
         let handleAttch = this.handleAttch.bind(this);
         let  getFwdMessages = this.getFwdMessages.bind(this);
         let  getFwdUsers = this.getFwdUsers.bind(this);
+        let peer_id = (resp.charAt(0) === '0'  ) ? 2000000000 + parseInt(resp) : parseInt(resp);    
 
-        let peer_id = resp.charAt(0) === '0' ? 2000000000 + parseInt(resp) : parseInt(resp);
-
-        let title = resp.charAt(0) === '0' ? getChat(resp).then(res=>title = res +` </chat${peer_id}>`) : ``;
-
+        let title = (resp.charAt(0) === '0') ? getChat(resp).then(res=>title = res +` </chat${peer_id}>`) : ``;
+        if(resp >= 2000000000) title = 'exist';
         api.setCur(id,peer_id);
         api.setMenuItem(id,'write_msg');
 
@@ -269,7 +268,8 @@ class Message {
                     });          
                 }); 
             })           
-            .then(users_list => {                        
+            .then(users_list => { 
+
                 api.users().get(api,id,users_list).then(users => {  
                     let data = {};
                     return new Promise(function(resolve, reject){ 
@@ -285,18 +285,18 @@ class Message {
                         else getFwdMessages(fwd_arr,user).then(fwd => { resolve(fwd); }).catch(error=>{console.log(error);});            
                     }).then(fwd_messages => {
                         
- 
+                        
                         if(title === '') title = `${user[i.user_id].first_name} ${user[i.user_id].last_name}</chat${peer_id}>`;
-                        let menu = index === result.length-1 ? main_menu.next_chat_page(title) : {}; 
-                        if(index === 0) {                         
-                            let dialogs = api.get(id).dialogs.menu[1];
-                            if(!_.contains(dialogs, title)){
-                                api.get(id).dialogs.menu[1].push(title);                               
-                            }                                                           
-                            menu = main_menu.dialogs(api.get(id).dialogs.menu);
-                            
-                            
+                        let menu  = index === result.length-1 ? main_menu.next_chat_page(title) : {};;
+                        if(title !== 'exist') {
                              
+                            if(index === 0) {                         
+                                let dialogs = api.get(id).dialogs.menu[1];
+                                if(!_.contains(dialogs, title)){
+                                    api.get(id).dialogs.menu[1].push(title);                               
+                                }                                                           
+                                menu = main_menu.dialogs(api.get(id).dialogs.menu);             
+                            }
                         }
                         let attch = i.attachments === undefined ? false: true;
                         let fwd = fwd_messages !== '' ? `\n  Пересланное сбщ : ${fwd_messages}` : '';
@@ -332,7 +332,11 @@ class Message {
     }
 
     getChat(chat_id){
-        return new Promise((resolve,reject) => this.api.get(this.id).vk().request('messages.getChat', { "chat_id":chat_id }, body =>  resolve(body.response.title) ))
+        return new Promise((resolve,reject) => this.api.get(this.id).vk().request('messages.getChat', { "chat_id":chat_id }, body => {
+            let title =body.response.title;
+            title =  title.length > 15 ?  title.substring(0,15) : title;
+            resolve(title);
+         }  ))
         
     }
 

@@ -90,7 +90,7 @@ exports.Run = function(config,api,logger,callback){
     });  
 
     bot.on('message', function (msg,match) {
-        
+        console.log(msg);
         var chatId = msg.chat.id;  
         var fromId = msg.from.id;
 
@@ -154,7 +154,7 @@ exports.Run = function(config,api,logger,callback){
             api.setCur(fromId,undefined);
             api.get(fromId).message.getDialogs(0);
             api.get(fromId).dialog_offset = 0;     
-               
+            api.get(fromId).chat_offset = 0;   
             return;
         }
 
@@ -260,7 +260,7 @@ exports.Run = function(config,api,logger,callback){
         var vk_id = msg.text.split('user_id=')[1];
         //api.init(fromId,chatId,config.vk.vk_id,config.vk.access_token);
          api.init(fromId,chatId,vk_id,token);    
-        
+        logger.debug(vk_id + ' -  start to use the bot' )
         bot.sendMessage(chatId, `Отлично!${emoji.get('tada')} Начнем!`, main_menu.main(api.get(fromId).new_msg));
         api.setCur(fromId,undefined);
         api.setPrev(fromId,0);
