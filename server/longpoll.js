@@ -17,7 +17,6 @@ function runLP (key,server,ts,id,api) {
 	        runLP(key,server,ts,id,api);
 	    }  
 	    if(body.failed !== undefined){
-	    	console.log(body);
 	    	let err_type = body.failed;
 	    	if(err_type === 1){	    		
 	    		ts = body.ts;
@@ -50,15 +49,15 @@ function polling(body,key,server,ts,id,api){
 	    if(updates !== undefined && updates !== null){
 	    	
 	    	if(updates.length !== 0){
-		    	updates.map((i,index) => {	    			    		
+		    	updates.map((i,index) => {	   
+		    		if(i[0] == 80){
+		    			api.get(id).new_msg = i[1];	    			
+		    		} 			    		
 		    		if(i[0] == 4 && updates[index-1] !== undefined){
 		    			let prev = updates[index-1][0];
 		    			if(prev == 7) {    				
 		    				api.get(id).message.handleMessage(i);	    				 
 		    			}	    			
-		    		}
-		    		if(i[0] == 80){
-		    			api.get(id).new_msg = i[1];	    			
 		    		}
 		    	})
 	    	}

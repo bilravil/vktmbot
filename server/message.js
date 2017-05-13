@@ -38,7 +38,7 @@ class Message {
         let sendByBot = this.sendByBot.bind(this);
 
         let msg_id = i[1];
-        let type = i[5] === ' ... ' ? 'dialog' : 'chat';
+        let type = i[5] === ' ... ' || i[5] === ''? 'dialog' : 'chat';
         let fwd = i[7].fwd === undefined ? false : true;
         if(type === 'dialog' && (api.get(id).vk_bot.state === true)){
             setTimeout( sendByBot(msg_id), parseInt(api.get(id).vk_bot.timer));
@@ -62,41 +62,49 @@ class Message {
         let msg_id = i[1];
         let title = i[5];
         let user_id = title === ' ... ' ? i[3] : i[7].from ;        
-        let text = i[6];
+        let text = i[6].replace(new RegExp('<br>', 'g'), '\n').replace(new RegExp('</br>', 'g'), '');
         let attch = i[7].attach1 === undefined ? false: true;
-        
         if(api.get(id).lastMsg !== msg_id){
             Users.get(api,id,user_id).then(result => {
                 let user = {};
                 user.first_name = result[0].first_name;
                 user.last_name = result[0].last_name;    
 
-                if(title === ' ... ') i[7] = user; else i[8] = user;
+                if(title === ' ... ' || title === '') i[7] = user; else i[8] = user;
+                let footer = `\n/write${i[3]} Ответить${emoji.get('email')}\n/mark${i[1]} Прочитано${emoji.get('incoming_envelope')}`;
                 let msg = title === ' ... ' ?
-                `${user.first_name} ${user.last_name}  : \n${i[6]} ` :
-                `${title} \n${i[8].first_name} : ${i[6]} ` ;                  
+                `${user.first_name} ${user.last_name}  : \n${text} ` :
+                `${title} \n${i[8].first_name} ${i[8].last_name} : ${text} ` ;                  
                 if(attch){
                     handleAttch(msg_id).then(attch => {
 
                         if(attch.photo !== undefined) attch.photo.map((i,index) =>{
-                             if(api.get(id).curUser == i[3]) tm.SendPhoto(api,id,i,msg);
-                             else tm.SendPhoto(api,id,i,msg,main_menu.msg(i[3],i[1]));
+                            if(api.get(id).curUser == i[3]) tm.SendPhoto(api,id,i,msg);
+                            else tm.SendPhoto(api,id,i,msg+footer);
                          });
                         if(attch.doc !== undefined) attch.doc.map((i,index) =>{ 
                             if(api.get(id).curUser == i[3]) tm.SendDoc(api,id,i,msg);
-                            else tm.SendDoc(api,id,i,msg,main_menu.msg(i[3],i[1]));
+                            else tm.SendDoc(api,id,i,msg+footer);
                             
                         });
                         if(attch.link !== undefined) attch.link.map((i,index) =>{
                             msg += '\n' + i;
                             if(api.get(id).curUser == i[3]) tm.Send(api,id,msg);
-                            else tm.Send(api,id,msg,main_menu.msg(i[3],i[1]));
+                            else tm.Send(api,id,msg+footer);
+                        });
+                        if(attch.audio !== undefined) attch.audio.map((i,index) =>{
+                            if(api.get(id).curUser == i[3]) tm.SendAudio(api,id,i,msg);
+                            else tm.SendAudio(api,id,i,msg+footer);
+                            
+                        });
+                        if(attch.gift !== undefined) attch.gift.map((i,index) =>{
+                            tm.SendPhoto(api,id,i,list,menu);
                         });
 
                     });
                 }else {
                     if(api.get(id).curUser == i[3]) tm.Send(api,id,msg);
-                    else tm.Send(api,id,msg,main_menu.msg(i[3],i[1]));
+                    else  tm.Send(api,id,msg+footer);
                     api.setLastMsg(id,msg_id);  
                     api.setMenuItem(id,'write_msg');
                 }
@@ -113,6 +121,7 @@ class Message {
 
         let  getFwdMessages = this.getFwdMessages.bind(this);
         let  getFwdUsers = this.getFwdUsers.bind(this);
+        
         api.get(id).vk().request('messages.getById', {"message_ids" : message_ids}, function(body) {
             body.response.items.map(i => {  
                 let k = i;                                
@@ -137,21 +146,20 @@ class Message {
                                 getFwdMessages(fwd_arr,user).then(fwd => { resolve(fwd); }).catch(error=>{console.log(error);});            
                             })
                         .then(fwd_messages => {
-                            let body = i.body === '' ? 'Пересланное сбщ:' : i.body ;
-                            let user_id = k.title === ' ... ' ? k.user_id : k.from ; 
-                            let title = k.title === ' ... ' ? 
+                            let footer = `\n/write${user_id} Ответить${emoji.get('email')}\n/mark${i.id} Прочитано${emoji.get('incoming_envelope')}`;
+
+                            let body = i.body === '' ? 'Пересланное сбщ:' : i.body.replace(new RegExp('<br>', 'g'), '\n').replace(new RegExp('</br>', 'g'), '') ;
+                            
+                            let user_id = k.title === ' ... ' || k.title === '' ? k.user_id : k.from ; 
+                            
+                            let title = k.title === ' ... ' | k.title === '' ? 
                             `${user[k.user_id].first_name} ${user[k.user_id].last_name}` 
                             : k.title + ` : \n${user[k.user_id].first_name} ${user[k.user_id].last_name}`
                             let msg = `${title}  : \n${body} \n  ${fwd_messages}`; 
-                            let new_msg = {
-                                reply_markup: JSON.stringify({
-                                    inline_keyboard: [
-                                      [{ text: title, callback_data: `/chat${user_id};${k.id}` }]
-                                    ]
-                                })
-                            };
-                            tm.Send(api,id,`Новых сообщений : ${api.get(id).new_msg}`,new_msg);
-                            tm.Send(api,id,msg);
+                            
+                            if(api.get(id).curUser == user_id) tm.Send(api,id,msg);
+                            else  tm.Send(api,id,msg+footer);
+                            
                             api.setLastMsg(id,k.id);  
                             api.setMenuItem(id,'write_msg');
                         }).catch(error=>{console.log(error);});                        
@@ -198,7 +206,7 @@ class Message {
                     })
             })
             .then(user => {   
-             
+                
                 result.map((k,index) =>{  
                     let i = k.message;
                     let fwd_arr = i.fwd_messages === undefined ? undefined : i.fwd_messages;
@@ -206,30 +214,41 @@ class Message {
                         if(fwd_arr === undefined) resolve('');
                         else getFwdMessages(fwd_arr,user).then(fwd => { resolve(fwd); }).catch(error=>{console.log(error);});            
                     }).then(fwd_messages => {
+
                         let attch = i.attachments === undefined ? false: true;
                         let fwd = fwd_messages !== '' ? `\n  Пересланное сбщ : ${fwd_messages}` : '';
                         let list = ``;  
                         let m = i.out === 0 ? i.user_id : api.get(id).vk_id; 
-                        let title = i.title === ' ... ' ? `${user[i.user_id].first_name} ${user[i.user_id].last_name}` : i.title;
-                        let chat = i.title === ' ... ' ? `chat${i.user_id} ${emoji.get('speech_balloon')}` : `chat0${i.chat_id} ${emoji.get('speech_balloon')}`;  
-                        list = `${title} /${chat} \n${user[m].first_name} : ${i.body} ${fwd}\n`;
+                        let body = i.body.replace(new RegExp('<br>', 'g'), '\n').replace(new RegExp('</br>', 'g'), '')
+                        let title = i.title === ' ... ' || i.title === ''  ? `${user[i.user_id].first_name} ${user[i.user_id].last_name}` : i.title;
+                        let chat = i.title === ' ... ' || i.title === '' ? `chat${i.user_id} ${emoji.get('speech_balloon')}` : `chat0${i.chat_id} ${emoji.get('speech_balloon')}`;  
+                        list = `${title} /${chat} \n${user[m].first_name} : ${body} ${fwd}\n`;
                         
                         let menu = index === result.length-1 ? main_menu.next_dialog_page() : {};
                         if(index === 0) menu = main_menu.dialogs(api.get(id).dialogs.menu);
                         if(attch){
                             handleAttch(i.id).then(attch => {
                                 if(attch.photo !== undefined) attch.photo.map((i,index) =>{
-                                    //tm.SendPhoto(api,id,i,list,menu);
+                                   // tm.SendPhoto(api,id,i,list,menu);
                                     list += `\n ${i}`;
                                     tm.Send(api,id,list,menu);
                                 });
                                 if(attch.doc !== undefined) attch.doc.map((i,index) =>{
-                                    tm.SendDoc(api,id,i,list,menu);
+                                    list += `\n ${i}`;
+                                    tm.Send(api,id,list,menu);
                                 });
                                 if(attch.link !== undefined) attch.link.map((i,index) =>{
                                     list += '\n' + i;
-                                    tm.Send(api,id,list),menu;
+                                    tm.Send(api,id,list,menu);
+                                })
+                                if(attch.audio !== undefined) attch.audio.map((i,index) =>{
+                                    list += '\n' + i;
+                                    tm.Send(api,id,list,menu);
                                 });
+                                if(attch.gift !== undefined) attch.gift.map((i,index) =>{
+                                    list += '\n' + i;
+                                    tm.Send(api,id,list,menu);
+                                })
 
                             });
                         }else  setTimeout(function(){ tm.Send(api,id,list,menu)},index*200); 
@@ -304,14 +323,16 @@ class Message {
                         var time = new Date(Date.UTC(1970, 0, 1)); 
                         time.setSeconds(i.date);                    
                         var date = time.getHours() + ":" + time.getMinutes();
-                        list = `${user[i.from_id].first_name} ${user[i.from_id].last_name} ${date} \n ${i.body}  ${fwd}\n`;
+                        let body = i.body.replace(new RegExp('<br>', 'g'), '\n').replace(new RegExp('</br>', 'g'), '')
+                        list = `${user[i.from_id].first_name} ${user[i.from_id].last_name} ${date} \n ${body}  ${fwd}\n`;
 
 
 
                         if(attch){
                             handleAttch(i.id).then(attch => {
-                                if(attch.photo !== undefined) attch.photo.map((i,index) =>{
-                                    tm.SendPhoto(api,id,i,list,menu);
+                                if(attch.photo !== undefined ) attch.photo.map((i,index) =>{
+                                    list += '\n' + i;
+                                    tm.Send(api,id,list,menu);
                                 });
                                 if(attch.doc !== undefined) attch.doc.map((i,index) =>{
                                     tm.SendDoc(api,id,i,list,menu);
@@ -320,6 +341,15 @@ class Message {
                                     list += '\n' + i;
                                     tm.Send(api,id,list,menu);
                                 });
+                                if(attch.audio !== undefined) attch.audio.map((i,index) =>{
+                                    list += '\n' + i;
+                                    tm.Send(api,id,list,menu);
+                                });
+                                if(attch.gift !== undefined) attch.gift.map((i,index) =>{
+                                    list += '\n' + i;
+                                    tm.Send(api,id,list,menu);
+                                })
+
                             });
                         }else setTimeout(function(){ tm.Send(api,id,list,menu)},index*200);
                     })  
@@ -371,7 +401,7 @@ class Message {
 
                 fwd_arr.map((i ,index ) => { 
                     let attch = i.attachments === undefined ? false: true;
-                    let body = i.body === '' ? 'Пересланное сбщ:' : i.body ;
+                    let body = i.body === '' ? 'Пересланное сбщ:' : i.body.replace(new RegExp('<br>', 'g'), '\n').replace(new RegExp('</br>', 'g'), '') ;
                     fwd_messages += `${user[i.user_id].first_name} ${user[i.user_id].last_name} : ${body} \n    ` ;
 
                     if(attch){
@@ -385,6 +415,12 @@ class Message {
                                 //tm.SendDoc(api,id,i);
                             });
                             if(attch.link !== undefined) attch.link.map((i,index) =>{
+                                fwd_messages += `\n ${i}`;
+                            });
+                            if(attch.audio !== undefined) attch.audio.map((i,index) =>{
+                                fwd_messages += `\n ${i}`;
+                            });
+                            if(attch.gift !== undefined) attch.gift.map((i,index) =>{
                                 fwd_messages += `\n ${i}`;
                             });
                             if(i.fwd_messages !== undefined) get(i.fwd_messages );
@@ -408,8 +444,10 @@ class Message {
         
         return new Promise(function(resolve, reject){           
             api.get(id).vk().request('messages.getById', {'message_ids' : message_id}, function(body) {
+
                 let attchs = [];
                 let main = i !== undefined ? i : body.response.items[0];
+
                 main.attachments.map((i,index) =>{
                     if(i.type === 'photo'){
                         let url ;
@@ -421,15 +459,30 @@ class Message {
                         attchs.push(url);
                         if(index == main.attachments.length-1) resolve({"photo":attchs});
                     }
-                    if(i.type === 'doc'){
+                    else if(i.type === 'doc'){
                         let url = i.doc.url;
                         attchs.push(url);
+
                         if(index == main.attachments.length-1) resolve({"doc":attchs});
                     }
-                    if(i.type === 'link'){
+                    else if(i.type === 'link'){
                         let url = i.link.url;
                         attchs.push(url);
                         if(index == main.attachments.length-1) resolve({"link":attchs});
+                    }
+
+                    else if(i.type === 'gift'){
+                        let url = i.gift.thumb_96;
+                        attchs.push(url);
+                        if(index == main.attachments.length-1) resolve({"photo":attchs});
+                    }
+                    else if(i.type === 'audio'){
+                        let url = i.audio.url;
+                        attchs.push(url);
+                        if(index == main.attachments.length-1) resolve({"audio":attchs});
+                    }
+                    else {
+                        if(index == main.attachments.length-1) resolve({"other":''});
                     }
                     
                 })
@@ -464,7 +517,6 @@ class Message {
         let api = this.api;
         let id = this.id;
         api.get(id).vk().request('messages.markAsRead', {'message_ids' : message_ids}, function(body) {
-            console.log(body);
         });
     }
 
@@ -473,6 +525,12 @@ class Message {
         let id = this.id;
         let api = this.api;
         api.get(id).vk().request('messages.getLongPollServer', { }, function(body) {
+            console.log(body);
+            if(body.response === undefined){
+                tm.Send(api,id,`Невозможно установить связь с сервером.Возможно,вы отправили неверную ссылку из адресной строки.Повторите,пожалуйста, попытку`);
+                
+                return;
+            }
             let key = body.response.key; 
             let server = body.response.server;
             let ts = body.response.ts; 

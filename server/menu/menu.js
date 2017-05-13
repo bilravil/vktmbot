@@ -2,6 +2,11 @@ const emoji = require('node-emoji');
 
 
 const menu = {
+
+    MENU : `Старт! ${emoji.get('dizzy')} Прочитано ${emoji.get('incoming_envelope')} Меню ${emoji.get('star')} Написать ${emoji.get('email')} 
+    Друзья${emoji.get('couple')} Диалоги${emoji.get('speech_balloon')} Настройки🛠️ Автоответчик ВК🗣️ Статус ВК💡️ Далее${emoji.get('arrow-right')} 
+    Поиск${emoji.get('mag')} Скрыть ${emoji.get('no_entry_sign')} Закрыть ✖️` ,
+
     start : {
       reply_markup: {
         resize_keyboard: true,

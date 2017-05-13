@@ -16,13 +16,7 @@ function settings (api,msg,match,bot) {
         return;
     }   
 
-	if(api.get(fromId).menu_item === 'settings.change_bot_text' ) { 
-        api.get(fromId).vk_bot.text = msg.text; 
-        bot.sendMessage(chatId,`Текст автоответчика изменен${emoji.get('ok_hand')}`, menu.settings); 
-        api.setMenuItem(fromId,'settings');      
-    }    
-
-	if(msg.text === `Автоответчик ВК🗣️`){    
+    if(msg.text === `Автоответчик ВК🗣️`){    
         let txt = api.get(fromId).vk_bot.state ? 'Выключить🔕' :'Включить🔔';
         let state = api.get(fromId).vk_bot.state ? 'Включен' :'Выключен';
         var vk_bot_settings = {
@@ -52,6 +46,18 @@ function settings (api,msg,match,bot) {
         api.setMenuItem(fromId,'settings.change_vk_status');
         return;
     }
+
+	if(api.get(fromId).menu_item === 'settings.change_bot_text' ) { 
+        api.get(fromId).vk_bot.text = msg.text; 
+        bot.sendMessage(chatId,`Текст автоответчика изменен${emoji.get('ok_hand')}`, menu.settings);
+        api.setMenuItem(fromId,'settings'); 
+        return;
+      
+    }    
+
+	
+
+    
 
     if(msg.text === `Выключить постоянный онлайн🌑`){      
         api.get(fromId).vk_status = false;
