@@ -11,6 +11,7 @@ var bot ;
 const _ = require('underscore');
 var users = [];
 var fs = require('fs');
+var logsFile;
 
 exports.Send = function(api,fromId,msg,menu = {}){
     let chatId = api.get(fromId).chatId;
@@ -38,7 +39,7 @@ exports.SendDoc = function(api,fromId,doc,caption,menu = {}){
 
 
 exports.Run = function(config,api,logger,callback){  
-  
+    logsFile = config.logs;
     token = config.tm.token;
     bot = new TelegramBot(token, { polling: true });
     init();
@@ -349,8 +350,8 @@ exports.Run = function(config,api,logger,callback){
     function readFile(){
 
         return new Promise(function(resolve,reject){
-            if (!fs.existsSync("/opt/vkbot/server/logs/data.txt")) { resolve(['']); return;}
-            fs.readFile('/opt/vkbot/server/logs/data.txt', 'utf8', function(err, data) {
+            if (!fs.existsSync(logsFile)) { resolve(['']); return;}
+            fs.readFile(logsFile, 'utf8', function(err, data) {
                 var line = data.trim().split('\n').slice(-1)[0];
                 let arr = line.split(',');
                 resolve(arr);
@@ -365,9 +366,9 @@ exports.Run = function(config,api,logger,callback){
 
 
 function writeToFile(tmp){
-    if (fs.existsSync("/opt/vkbot/server/logs/data.txt")) {
-        fs.appendFile("/opt/vkbot/server/logs/data.txt", `\n${tmp}`, function(err) {})
-    }else fs.writeFile("/opt/vkbot/server/logs/data.txt", tmp, function(err) {})   
+    if (fs.existsSync(logsFile)) {
+        fs.appendFile(logsFile, `\n${tmp}`, function(err) {})
+    }else fs.writeFile(logsFile, tmp, function(err) {})   
 }
 
 process.on('SIGINT', function(err) {
