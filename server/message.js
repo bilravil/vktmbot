@@ -525,16 +525,24 @@ class Message {
         let id = this.id;
         let api = this.api;
         api.get(id).vk().request('messages.getLongPollServer', { }, function(body) {
-            console.log(body);
-            if(body.response === undefined){
-                tm.Send(api,id,`Невозможно установить связь с сервером.Возможно,вы отправили неверную ссылку из адресной строки.Повторите,пожалуйста, попытку`);
-                
-                return;
+            
+            if(body.error !== undefined){
+                console.log(body);
+                if(body.error.error_code === 17){
+                    let uri = body.error.redirect_uri;
+                    let msg = `Для подтверждения необходимо пройти по ссылке ${uri}. Дальше скопировать путь с адресной строки и отправить в этот  чат. `;
+                    tm.Send(api,id,msg);
+                    return;
+                }else{
+                    tm.Send(api,id,`Невозможно установить связь с сервером.Сообщите пожалуйста об ошибке @bilalov_ravil`);              
+                    return;
+                }                
             }
             let key = body.response.key; 
             let server = body.response.server;
             let ts = body.response.ts; 
             LongPoll.runLP(key,server,ts,id,api);
+            tm.Send(api,id, `Отлично!${emoji.get('tada')} Начнем!`, main_menu.main(api.get(id).new_msg));
         });
     }
 }

@@ -77,7 +77,5 @@ process.on('uncaughtException', function(err) {
     console.log(err);
 });
 
-//catches ctrl+c event
-
 
 http.listen(process.env.PORT || 5000);

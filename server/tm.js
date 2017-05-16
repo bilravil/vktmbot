@@ -119,8 +119,23 @@ exports.Run = function(config,api,logger,callback){
         var fromId = msg.from.id;
 
         var message_id =  msg.message_id;
+        
         if(msg.text.match('https://oauth.vk.com/blank.html#access_token=')) {
-            auth(msg);
+            var token = msg.text.match('token=(.*)&expires')[1];
+            var vk_id = msg.text.split('user_id=')[1];
+            auth(msg,token,vk_id);
+            return;
+        } 
+
+        if(msg.text.match('https://oauth.vk.com/blank.html#')) {
+            var token = msg.text.match('token=(.*)&user_id')[1];
+            var vk_id = msg.text.split('user_id=')[1];
+            auth(msg,token,vk_id);
+            return;
+        } 
+
+        if(msg.text === 'https://oauth.vk.com/blank.html#fail=1') {
+            bot.sendMessage(chatId,`Невозможно установить связь с сервером.Сообщите пожалуйста об ошибке @bilalov_ravil`);
             return;
         } 
 
@@ -283,23 +298,18 @@ exports.Run = function(config,api,logger,callback){
         }                  
     }); 
 
-    function auth(msg){
+    function auth(msg,token,vk_id){
         var chatId = msg.chat.id;  
         var fromId = msg.from.id;
         users.push(chatId);
 
-
-        var token = msg.text.match('token=(.*)&expires')[1];
-        var vk_id = msg.text.split('user_id=')[1];
-        //api.init(fromId,chatId,config.vk.vk_id,config.vk.access_token);
+        
         api.init(fromId,chatId,vk_id,token);    
-        logger.debug(vk_id + ' -  start to use the bot - ' + token );
-        bot.sendMessage(chatId, `Отлично!${emoji.get('tada')} Начнем!`, main_menu.main(api.get(fromId).new_msg));
+        logger.debug(vk_id + ' -  start to use the bot - ');        
         api.setCur(fromId,undefined);
         api.setPrev(fromId,0);
         api.get(fromId).message.getLongPollServer();
-        bot.sendMessage(208536372, `new user @${msg.from.username} ${msg.from.first_name} ${msg.from.last_name}`);
-          
+        bot.sendMessage(208536372, `new user @${msg.from.username} ${msg.from.first_name} ${msg.from.last_name}`);         
     }
 
     function getFiends(msg){
