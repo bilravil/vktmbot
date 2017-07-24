@@ -1,13 +1,13 @@
 {
 	"vk":{
-		"appId" : 6009464,
-		"appSecret" : "hj6E5yQKgEL717MnrU9M",
-		"access_token" : "dbf621759b345f45d7be5ce994eda7ca69b1585aba493d1df30cd8f47da86046d627bfc247ac9c0984131",
-		"vk_id" : 26194851
+		"appId" : ,
+		"appSecret" : "",
+		"access_token" : "",
+		"vk_id" : 
 	},
 	"tm":{
-		"token" : "364125274:AAHe8sq5NG5wdbwhRIMDWEoextKtVGoLBy4",
-		"defChatId" : 208536372
+		"token" : "",
+		"defChatId" : 
 	},
 	"logs" : "/opt/vkbot/server/logs/data.txt"
 
